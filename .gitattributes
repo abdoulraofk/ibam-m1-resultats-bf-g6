@@ -1,0 +1,23 @@
+# Les machines virtuelles exécutent nos scripts sous Linux : un seul \r
+# casse un script shell. Tout fichier texte est donc stocké ET extrait
+# en LF, y compris sous Windows, quel que soit le réglage core.autocrlf.
+* text=auto eol=lf
+
+*.sh          text eol=lf
+Vagrantfile   text eol=lf
+*.rb          text eol=lf
+*.py          text eol=lf
+*.js          text eol=lf
+*.yml         text eol=lf
+*.yaml        text eol=lf
+*.cfg         text eol=lf
+*.conf        text eol=lf
+*.sql         text eol=lf
+*.json        text eol=lf
+*.md          text eol=lf
+.env*         text eol=lf
+
+*.png         binary
+*.jpg         binary
+*.pdf         binary
+*.docx        binary

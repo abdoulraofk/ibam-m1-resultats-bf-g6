@@ -1,0 +1,28 @@
+# Secrets : seul .env.exemple est versionné (exigence R7)
+.env
+.env.*
+!.env.exemple
+
+# État local de Vagrant (identifiants des VM, clés SSH)
+.vagrant/
+
+# Engendré par le Vagrantfile à chaque exécution depuis la table NOEUDS :
+# la source de vérité est le Vagrantfile, pas ce fichier.
+config/noeuds.yml
+
+# Python / Node
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+
+# Éditeurs et systèmes
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+*.log
+
+# Les sorties brutes de essais/resultats/ SONT versionnées :
+# elles prouvent les mesures du dossier.
