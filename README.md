@@ -55,6 +55,20 @@ répartiteur est engendrée. Aucune adresse n'est écrite en dur ailleurs.
 | `CONTRATS.md` | Conventions entre membres : ports, noms, schéma de la table |
 | `JOURNAL.md` | Journal de bord : décisions, difficultés |
 
+## Contrôler la plateforme et la reconstruire (R1, V5)
+
+Après un `vagrant up`, depuis la racine du dépôt :
+
+```bash
+essais/controle_socle.sh        # machines, base, réplique, service, répartition
+essais/v5_reconstruction.sh     # destroy -f + up chronométré, puis contrôle
+```
+
+Chaque point est affiché OK ou KO, et le script se termine en erreur s'il y a
+un KO. C'est la vérification de la reconstruction croisée du soir.
+`v5_reconstruction.sh` **détruit les machines** : le lancer avec les mêmes
+`NB_APP` / `EXT` que lors de la création.
+
 ## Vérifier l'idempotence (R2)
 
 Plateforme démarrée, depuis la racine du dépôt :
