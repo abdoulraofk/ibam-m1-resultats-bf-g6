@@ -3,11 +3,20 @@
 # RÉSULTATS-BF — Groupe 6 — Vagrantfile (source unique de vérité)
 # Responsable : SIMPORE (architecte réseau et répartition)
 #
-# Utilisation (PowerShell, dossier du dépôt) :
-#   vagrant up                    -> socle : bdd1, bdd2, app1, app2, lb1
-#   $env:NB_APP=4; vagrant up     -> 4 serveurs applicatifs (R3)
-#   $env:EXT="e1"; vagrant up     -> + lb2 (extension E1)
-#   $env:EXT="e1,e2"; vagrant up  -> + lb2 + obs (extensions E1 et E2)
+# Utilisation (dossier du dépôt) :
+#   PowerShell                         Git Bash
+#   vagrant up                         vagrant up                -> socle : bdd1, bdd2, app1, app2, lb1
+#   $env:NB_APP=4; vagrant up          NB_APP=4 vagrant up       -> 4 serveurs applicatifs (R3)
+#   $env:EXT="e1"; vagrant up          EXT=e1 vagrant up         -> + lb2 (extension E1)
+#   $env:EXT="e1,e2"; vagrant up       EXT=e1,e2 vagrant up      -> + lb2 + obs (E1 et E2)
+#
+# ATTENTION :
+# - Définir NB_APP / EXT une fois en début de session ($env:NB_APP=4 en PowerShell,
+#   export NB_APP=4 en Git Bash) : config/noeuds.yml est réécrit à chaque commande
+#   Vagrant, et un « vagrant up lb1 » sans NB_APP ramènerait HAProxy à 2 serveurs.
+# - Détruire avec les MÊMES variables que pour créer : après NB_APP=4, faire
+#   « $env:NB_APP=4; vagrant destroy -f », sinon app3/app4 (ou lb2/obs) restent
+#   allumées dans VirtualBox sans être gérées par Vagrant.
 require 'yaml'
 require 'fileutils'
 
@@ -16,10 +25,16 @@ NB_APP  = (ENV['NB_APP'] || 2).to_i           # nombre de serveurs applicatifs
 EXT     = (ENV['EXT'] || "").downcase         # extensions actives : "", "e1", "e1,e2"
 RESEAU  = "192.168.#{55 + GROUPE}"
 BOITE   = "bento/ubuntu-24.04"
-VERSION = "202404.23.0"                       # version épinglée, identique pour tous
+VERSION = "202510.26.0"                       # version épinglée, identique pour tous
+                                              # (202404.23.0 du sujet n'est pas publiée)
 
 abort "GROUPE doit être entre 1 et 8"  unless (1..8).cover?(GROUPE)
 abort "NB_APP doit être entre 2 et 9"  unless (2..9).cover?(NB_APP)
+
+# Arrêt immédiat si .env manque (secrets lus par commun.sh / charger_env, R7)
+if %w[up provision reload].include?(ARGV[0]) && !File.exist?(File.join(File.dirname(__FILE__), ".env"))
+  abort "Fichier .env absent : lancer « cp .env.exemple .env » (PowerShell : Copy-Item .env.exemple .env) puis le compléter."
+end
 
 # Source unique de vérité : cette table crée les VM ET alimente la
 # configuration du répartiteur (lue par les scripts dans /vagrant/config/noeuds.yml).
