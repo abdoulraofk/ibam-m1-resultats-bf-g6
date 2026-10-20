@@ -14,6 +14,11 @@
 
 set -uo pipefail
 cd "$(dirname "$0")/.."
+command -v vagrant >/dev/null 2>&1 || {
+    echo "vagrant introuvable. Sous Windows, lancer ce script depuis Git Bash, ou depuis" >&2
+    echo "PowerShell avec : essais\lancer.cmd $(basename "$0" .sh)   (pas avec « bash », qui lance WSL)" >&2
+    exit 1
+}
 
 [ -f .env ] || { echo "Fichier .env absent : « cp .env.exemple .env » puis le compléter." >&2; exit 1; }
 mkdir -p essais/resultats
