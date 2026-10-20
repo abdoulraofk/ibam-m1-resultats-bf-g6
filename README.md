@@ -52,7 +52,22 @@ répartiteur est engendrée. Aucune adresse n'est écrite en dur ailleurs.
 | `app/` | Service HTTP (`/resultat`, `/sante`, `/info`) |
 | `config/` | Fichiers de configuration ; `noeuds.yml` y est engendré |
 | `essais/` | Un script par scénario de validation ; sorties brutes dans `essais/resultats/` |
+| `CONTRATS.md` | Conventions entre membres : ports, noms, schéma de la table |
 | `JOURNAL.md` | Journal de bord : décisions, difficultés |
+
+## Vérifier l'idempotence (R2)
+
+Plateforme démarrée, depuis la racine du dépôt :
+
+```bash
+essais/r2_idempotence.sh            # toutes les machines en marche
+essais/r2_idempotence.sh bdd1 app1  # machines choisies
+```
+
+Le script rejoue `vagrant provision` deux fois et compare l'empreinte de
+chaque fichier de `/etc` entre les deux passes. Il se termine en erreur si la
+seconde passe a modifié quoi que ce soit ; la sortie brute est écrite dans
+`essais/resultats/`.
 
 ## Règles de contribution
 
