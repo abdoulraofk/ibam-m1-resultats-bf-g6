@@ -22,16 +22,23 @@ then CHANGE=1; fi
 # Mêmes accès que bdd1 : utiles si bdd2 est promue lors de la bascule
 ajouter_ligne "${PG_ETC}/pg_hba.conf" "host ${BDD_NOM} ${BDD_UTILISATEUR} ${RESEAU} scram-sha-256"
 ajouter_ligne "${PG_ETC}/pg_hba.conf" "host replication ${BDD_REPLICATION_UTILISATEUR} ${RESEAU} scram-sha-256"
-# --- Copie initiale depuis bdd1, une seule fois --
-if [ ! -f "${PG_DATA}/standby.signal" ]; then
+# --- Copie initiale depuis bdd1, UNE SEULE FOIS dans la vie de la VM ---
+# Le marqueur survit aux "vagrant provision" mais pas à "vagrant destroy".
+# Après une bascule, bdd2 est promue : il ne faut plus jamais la recopier.
+MARQUEUR="${ETAT_DIR}/replique-initialisee"
+if [ ! -f "$MARQUEUR" ]; then
   journal "attente de bdd1 (${IP_BDD1}:5432)"
   attendre_port "${IP_BDD1}" 5432
+
   systemctl stop "${SERVICE}"
   find "${PG_DATA}" -mindepth 1 -delete
+
   journal "copie de bdd1 vers bdd2 (pg_basebackup)"
   sudo -u postgres env PGPASSWORD="${BDD_REPLICATION_MOT_DE_PASSE}" \
     pg_basebackup -h "${IP_BDD1}" -U "${BDD_REPLICATION_UTILISATEUR}" \
     -D "${PG_DATA}" -X stream -R
+
+  mkdir -p "${ETAT_DIR}" && touch "$MARQUEUR"
   CHANGE=1
 fi
 if [ "$CHANGE" = 1 ]; then
