@@ -69,7 +69,14 @@ Vagrant.configure("2") do |config|
         vb.name   = "g#{GROUPE}-#{n[:nom]}"
         vb.memory = n[:mem]
         vb.cpus   = 1
+        # DNS des VM confié à Windows : apt continue de marcher si le PC
+        # change de réseau (Wi-Fi, partage de connexion) pendant la session.
+        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
       end
+      # Toutes les machines : node_exporter (métriques lues par obs, E2),
+      # installé avant le script de rôle.
+      m.vm.provision "node_exporter", type: "shell", run: "once",
+        inline: "#!/usr/bin/env bash\nsource /vagrant/scripts/commun.sh\ninstaller_node_exporter"
       # Les lb sont reprovisionnés à chaque "vagrant up" : si NB_APP change,
       # la configuration HAProxy suit toute seule (R3).
       toujours = (n[:role] == "lb") ? "always" : "once"

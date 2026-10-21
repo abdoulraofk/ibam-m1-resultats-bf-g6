@@ -137,3 +137,14 @@ attendre_port() {
     done
     journal "$hote:$port joignable"
 }
+
+# Installe node_exporter (métriques système : processeur, mémoire, disque,
+# réseau) et vérifie qu'il répond sur le port 9100. La machine obs
+# (extension E2) vient y lire les métriques de chaque machine.
+# Appelée pour toutes les machines par le Vagrantfile, avant le script de
+# rôle : les scripts de rôle n'ont rien à ajouter.
+installer_node_exporter() {
+    installer_paquets prometheus-node-exporter
+    systemctl enable --quiet --now prometheus-node-exporter
+    attendre_port 127.0.0.1 9100 30
+}
