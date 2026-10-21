@@ -47,4 +47,8 @@ else
   systemctl reload "${SERVICE}"
 fi
 attendre_port 127.0.0.1 5432
-journal "rôle replique : bdd2 réplique bdd1"
+if [ "$(sudo -u postgres psql -Atc 'SELECT pg_is_in_recovery();')" = "t" ]; then
+  journal "rôle replique : bdd2 réplique bdd1"
+else
+  journal "rôle replique : bdd2 est primaire (bascule effectuée)"
+fi
