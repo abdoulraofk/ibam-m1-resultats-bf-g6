@@ -8,23 +8,55 @@ VirtualBox) et se reconstruit sans aucun geste manuel.
 Projet de groupe — M1 Informatique, IBAM / Université Joseph KI-ZERBO,
 Virtualisation et Cloud Computing (Dr SOMDA), 2026-2027.
 
-> README en cours de rédaction : la procédure complète (scénarios V1 à V6,
-> bascule de la base, ajout d'un serveur) sera complétée au fil de la semaine.
+## Prérequis
 
-## Démarrage rapide
+| Outil | Version testée | Remarque |
+| --- | --- | --- |
+| VirtualBox | 7.2 | |
+| Vagrant | 2.4.9 | |
+| Git | récente | Sous Windows : Git for Windows, qui fournit Git Bash |
+| Mémoire | 8 Go | Le socle utilise 3 Go : il faut **3 Go libres** avant `vagrant up` |
 
-Prérequis : VirtualBox 7, Vagrant 2.4, Git, 8 Go de RAM.
+Sous Windows, Docker Desktop et WSL réservent souvent 2 à 3 Go : les fermer
+pendant les essais si la mémoire libre est insuffisante.
+
+## Démarrage
 
 ```bash
 git clone https://github.com/abdoulraofk/ibam-m1-resultats-bf-g6.git
 cd ibam-m1-resultats-bf-g6
-cp .env.exemple .env        # puis remplacer chaque « a_changer »
+cp .env.exemple .env        # PowerShell : Copy-Item .env.exemple .env
+                            # puis remplacer chaque « a_changer »
 vagrant up
 ```
 
-Le service répond ensuite sur <http://localhost:8080/info>.
+Le premier `vagrant up` télécharge la boîte `bento/ubuntu-24.04` (environ
+1 Go), puis crée et provisionne les machines. Le service répond ensuite sur
+<http://localhost:8080/info>.
 
-Pour changer le nombre de serveurs applicatifs : `NB_APP=4 vagrant up`.
+Vérifier que tout est en place :
+
+```bash
+essais/controle_socle.sh             # Git Bash
+essais\lancer.cmd controle_socle     # PowerShell
+```
+
+## Variables
+
+| Variable | Défaut | Effet |
+| --- | --- | --- |
+| `NB_APP` | 2 | Nombre de serveurs applicatifs (2 à 9) |
+| `EXT` | vide | Extensions à démarrer : `e1` (lb2), `e1,e2` (lb2 + obs) |
+| `GROUPE` | 6 | Numéro de groupe, fixe le sous-réseau 192.168.(55+G).0/24 |
+
+```bash
+NB_APP=4 vagrant up                  # Git Bash
+$env:NB_APP=4; vagrant up            # PowerShell
+```
+
+**Garder les mêmes variables pendant toute la session**, y compris pour
+`vagrant destroy` : après `NB_APP=4`, un `vagrant destroy -f` sans la variable
+laisse app3 et app4 allumées hors du contrôle de Vagrant.
 
 ## Architecture
 
@@ -39,9 +71,67 @@ Sous-réseau privé du groupe 6 : **192.168.61.0/24**.
 | lb2 | Répartiteur passif, IP virtuelle .10 (E1) | 192.168.61.12 | 512 Mo |
 | obs | Prometheus + Grafana (E2) | 192.168.61.41 | 768 Mo |
 
-La table `NOEUDS` du `Vagrantfile` est la **source unique de vérité** : elle
-crée les machines et produit `config/noeuds.yml`, d'où la configuration du
-répartiteur est engendrée. Aucune adresse n'est écrite en dur ailleurs.
+Chemin d'une requête :
+
+```
+hôte :8080 ──► lb1 :80 (HAProxy) ──► app1…appN :8000 ──► bdd1 :5432 ──réplication──► bdd2
+                     sonde GET /sante chaque seconde          node_exporter :9100 sur chaque VM ──► obs
+```
+
+- La table `NOEUDS` du `Vagrantfile` est la **source unique de vérité** :
+  elle crée les machines et produit `config/noeuds.yml`, d'où la
+  configuration HAProxy est engendrée. Aucune adresse n'est écrite en dur
+  ailleurs (R3).
+- Seul lb1 expose un port vers l'hôte (8080 → 80, sur 127.0.0.1) : tout le
+  reste passe par le réseau privé (R8).
+- HAProxy écarte un serveur après 2 échecs de `/sante` à une seconde
+  d'intervalle (R4), et rejoue sur un autre serveur une requête restée sans
+  réponse plus de 5 s.
+- Les secrets sont dans `.env`, jamais versionné (R7). Les conventions entre
+  composants (ports, schéma de la table, noms) sont dans `CONTRATS.md`.
+
+## Essais et scénarios de validation
+
+Sous PowerShell, remplacer `essais/xxx.sh` par `essais\lancer.cmd xxx`.
+Chaque essai écrit sa sortie brute horodatée dans `essais/resultats/`.
+
+| Exigence / scénario | Commande | Ce qui est vérifié |
+| --- | --- | --- |
+| Contrôle général | `essais/controle_socle.sh` | Machines, 50 000 lignes, réplique, `/sante`, `/resultat`, répartition |
+| R1 / V5 — Reconstruction | `essais/v5_reconstruction.sh` | `destroy -f` puis `up` chronométré, puis contrôle général |
+| R2 — Idempotence | `essais/r2_idempotence.sh` | Deux `vagrant provision` : aucun fichier de `/etc` modifié |
+| V1 à V4, V6 | à venir dans `essais/` | Répartition, panne d'une app, montée en charge, bascule, panne de lb1 |
+
+`v5_reconstruction.sh` **détruit les machines** : le lancer avec les mêmes
+`NB_APP` / `EXT` que lors de la création.
+
+## Procédures d'exploitation
+
+**Ajouter des serveurs applicatifs**
+
+```bash
+export NB_APP=4
+vagrant up                 # crée app3 et app4, reprovisionne lb1
+essais/controle_socle.sh   # « les 4 serveurs répondent »
+```
+
+La configuration HAProxy est réengendrée à chaque `vagrant up` du
+répartiteur : aucune modification manuelle.
+
+**Bascule de la base sur bdd2** — procédure `scripts/bascule.sh` à venir
+(scénario V4). La réplique est déjà protégée : un `vagrant provision bdd2`
+après une bascule ne recopie plus bdd1 par-dessus la base promue.
+
+## Dépannage
+
+| Symptôme | Cause | Solution |
+| --- | --- | --- |
+| `The box you're attempting to add doesn't support the provider` | Vagrant sous Windows ne détecte pas l'architecture de l'hôte | Corrigé dans le `Vagrantfile` (`box_architecture`) : faire `git pull` |
+| `Fichier .env absent` | `.env` n'a pas été créé | `cp .env.exemple .env` puis le compléter |
+| `vagrant introuvable` en lançant un essai depuis PowerShell | `bash` y désigne WSL | Utiliser `essais\lancer.cmd <essai>` |
+| Une fenêtre s'ouvre puis se ferme | `.sh` lancé par double-clic ou `.\essais\x.sh` | Utiliser `essais\lancer.cmd <essai>` |
+| VM très lentes ou `vagrant up` qui échoue au démarrage | Mémoire libre insuffisante | Libérer 3 Go (fermer Docker Desktop, navigateurs) |
+| Machines allumées que `vagrant status` ne montre pas | `destroy` lancé sans les mêmes `NB_APP` / `EXT` | Relancer `vagrant destroy -f` avec les variables d'origine |
 
 ## Arborescence
 
@@ -50,63 +140,27 @@ répartiteur est engendrée. Aucune adresse n'est écrite en dur ailleurs.
 | `Vagrantfile` | Définition des machines (table `NOEUDS`) |
 | `scripts/` | Provisionnement : `commun.sh` + un script par rôle |
 | `app/` | Service HTTP (`/resultat`, `/sante`, `/info`) |
-| `config/` | Fichiers de configuration ; `noeuds.yml` y est engendré |
-| `essais/` | Un script par scénario de validation ; sorties brutes dans `essais/resultats/` |
+| `config/` | Configurations ; `noeuds.yml` y est engendré ; `keepalived/` pour E1 |
+| `essais/` | Scripts d'essai, lanceur Windows `lancer.cmd` ; sorties dans `essais/resultats/` |
 | `CONTRATS.md` | Conventions entre membres : ports, noms, schéma de la table |
 | `JOURNAL.md` | Journal de bord : décisions, difficultés |
-
-## Contrôler la plateforme et la reconstruire (R1, V5)
-
-Après un `vagrant up`, depuis la racine du dépôt :
-
-```bash
-essais/controle_socle.sh        # machines, base, réplique, service, répartition
-essais/v5_reconstruction.sh     # destroy -f + up chronométré, puis contrôle
-```
-
-**Sous Windows, depuis PowerShell**, passer par le lanceur :
-
-```powershell
-essais\lancer.cmd controle_socle
-essais\lancer.cmd v5_reconstruction
-essais\lancer.cmd r2_idempotence
-```
-
-Ne pas taper `bash essais/...` dans PowerShell : `bash` y lance WSL, où
-Vagrant ne voit pas les VM de Windows. Ne pas lancer non plus le `.sh`
-directement : il s'ouvre dans une fenêtre qui se ferme aussitôt.
-
-Chaque point est affiché OK ou KO, et le script se termine en erreur s'il y a
-un KO. C'est la vérification de la reconstruction croisée du soir.
-`v5_reconstruction.sh` **détruit les machines** : le lancer avec les mêmes
-`NB_APP` / `EXT` que lors de la création.
-
-## Vérifier l'idempotence (R2)
-
-Plateforme démarrée, depuis la racine du dépôt :
-
-```bash
-essais/r2_idempotence.sh            # toutes les machines en marche
-essais/r2_idempotence.sh bdd1 app1  # machines choisies
-```
-
-Le script rejoue `vagrant provision` deux fois et compare l'empreinte de
-chaque fichier de `/etc` entre les deux passes. Il se termine en erreur si la
-seconde passe a modifié quoi que ce soit ; la sortie brute est écrite dans
-`essais/resultats/`.
 
 ## Règles de contribution
 
 - **Secrets** : jamais dans un fichier versionné. Ils vivent dans `.env`
   (ignoré par Git) ; `.env.exemple` en donne la liste.
-- **Fins de ligne** : LF partout, imposé par `.gitattributes`. Sous Windows,
-  ne pas modifier ce réglage dans l'éditeur.
+- **Fins de ligne** : LF partout, imposé par `.gitattributes` (sauf les
+  `.cmd`, en CRLF). Sous Windows, ne pas modifier ce réglage dans l'éditeur.
 - **Idempotence** : dans les scripts, utiliser les fonctions de
   `scripts/commun.sh` (`installer_paquets`, `ecrire_si_different`,
   `ajouter_ligne`) plutôt que `apt-get` ou `>>` directement. Rejouer
   `vagrant provision` deux fois avant de pousser.
-- **Branches** : une branche par tâche, fusion dans `main` seulement si
-  `vagrant up` passe.
+- **Branches** : une branche par personne et par tâche, jamais de commit
+  direct sur `main`, jamais de dépôt de fichiers par le site GitHub.
+  KUELA relit et fusionne.
+- **Messages de commit** : dire ce qui change et pourquoi
+  (« replique.sh : ne recopie plus bdd1 après une bascule »), pas
+  « Modifier le code ».
 - **Services réseau** : écouter sur `0.0.0.0`, jamais `127.0.0.1`.
 
 ## Équipe
