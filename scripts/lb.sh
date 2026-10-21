@@ -47,9 +47,12 @@ defaults
     option forwardfor
     option redispatch
     retries 2
+    # Une requête GET restée sans réponse (serveur tombé pendant la requête)
+    # est rejouée sur un autre serveur au lieu d'être perdue (R4, V2).
+    retry-on conn-failure empty-response response-timeout
     timeout connect 2s
     timeout client 30s
-    timeout server 30s
+    timeout server 5s
 
 frontend entree_web
     bind *:80
