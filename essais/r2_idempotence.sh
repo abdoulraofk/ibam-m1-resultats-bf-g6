@@ -16,6 +16,11 @@
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+command -v vagrant >/dev/null 2>&1 || {
+    echo "vagrant introuvable. Sous Windows, lancer ce script depuis Git Bash, ou depuis" >&2
+    echo "PowerShell avec : essais\lancer.cmd $(basename "$0" .sh)   (pas avec « bash », qui lance WSL)" >&2
+    exit 1
+}
 
 HORODATAGE="$(date +%Y%m%d_%H%M%S)"
 SORTIE="essais/resultats/r2_idempotence_${HORODATAGE}.txt"

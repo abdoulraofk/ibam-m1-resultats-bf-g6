@@ -17,6 +17,10 @@ Vagrantfile   text eol=lf
 *.md          text eol=lf
 .env*         text eol=lf
 
+# Exception : les fichiers batch Windows exigent des fins de ligne CRLF.
+*.cmd         text eol=crlf
+*.bat         text eol=crlf
+
 *.png         binary
 *.jpg         binary
 *.pdf         binary
