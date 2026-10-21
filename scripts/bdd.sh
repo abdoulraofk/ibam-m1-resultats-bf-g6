@@ -1,4 +1,69 @@
 #!/usr/bin/env bash
-# Script provisoire : à implémenter par KAGAMBEGA
+# Rôle bdd : PostgreSQL principal (bdd1) - KAGAMBEGA
+# Idempotent (R2) : relançable sans rien changer.
 source /vagrant/scripts/commun.sh
-journal "rôle bdd : pas encore implémenté"
+charger_env
+installer_paquets postgresql-16
+PG_VERSION=16
+PG_ETC="/etc/postgresql/${PG_VERSION}/main"
+IP_BDD1="$(ip_de bdd1)"
+RESEAU="${IP_BDD1%.*}.0/24"
+CHANGE=0
+psql_pg() { sudo -u postgres psql -v ON_ERROR_STOP=1 -qtA "$@"; }
+# --- Configuration réseau et réplication (contrat : port 5432, réseau privé) --
+if ecrire_si_different "${PG_ETC}/conf.d/resultats.conf" <<CONF
+listen_addresses = '127.0.0.1,${IP_BDD1}'
+port = 5432
+wal_level = replica
+max_wal_senders = 10
+wal_keep_size = 256MB
+hot_standby = on
+CONF
+then CHANGE=1; fi
+# --- Accès réseau : application et réplication, réseau privé uniquement --
+ajouter_ligne "${PG_ETC}/pg_hba.conf" "host ${BDD_NOM} ${BDD_UTILISATEUR} ${RESEAU} scram-sha-256"
+ajouter_ligne "${PG_ETC}/pg_hba.conf" "host replication ${BDD_REPLICATION_UTILISATEUR} ${RESEAU} scram-sha-256"
+if [ "$CHANGE" = 1 ]; then
+  systemctl restart "postgresql@${PG_VERSION}-main"
+else
+  systemctl reload "postgresql@${PG_VERSION}-main"
+fi
+attendre_port 127.0.0.1 5432
+# --- Rôles (créés si absents, mot de passe toujours aligné sur .env) --
+if [ "$(psql_pg -c "SELECT 1 FROM pg_roles WHERE rolname='${BDD_UTILISATEUR}'")" != 1 ]; then
+  psql_pg -c "CREATE ROLE ${BDD_UTILISATEUR} LOGIN"
+fi
+psql_pg -c "ALTER ROLE ${BDD_UTILISATEUR} PASSWORD '${BDD_MOT_DE_PASSE}'"
+if [ "$(psql_pg -c "SELECT 1 FROM pg_roles WHERE rolname='${BDD_REPLICATION_UTILISATEUR}'")" != 1 ]; then
+  psql_pg -c "CREATE ROLE ${BDD_REPLICATION_UTILISATEUR} REPLICATION LOGIN"
+fi
+psql_pg -c "ALTER ROLE ${BDD_REPLICATION_UTILISATEUR} PASSWORD '${BDD_REPLICATION_MOT_DE_PASSE}'"
+# --- Base --
+if [ "$(psql_pg -c "SELECT 1 FROM pg_database WHERE datname='${BDD_NOM}'")" != 1 ]; then
+  sudo -u postgres createdb -O "${BDD_UTILISATEUR}" "${BDD_NOM}"
+fi
+# --- Table du contrat et 50 000 lignes (chargées une seule fois) --
+psql_pg -d "${BDD_NOM}" <<SQL
+CREATE TABLE IF NOT EXISTS resultats(
+  matricule TEXT PRIMARY KEY,
+  nom TEXT,
+  serie TEXT,
+  moyenne NUMERIC(4,2),
+  admis BOOLEAN
+);
+ALTER TABLE resultats OWNER TO ${BDD_UTILISATEUR};
+SQL
+if [ "$(psql_pg -d "${BDD_NOM}" -c "SELECT count(*) FROM resultats")" = 0 ]; then
+  journal "chargement de 50000 lignes dans resultats"
+  psql_pg -d "${BDD_NOM}" <<SQL
+INSERT INTO resultats(matricule, nom, serie, moyenne, admis)
+SELECT 'M' || lpad(i::text, 6, '0'),
+       'Eleve ' || i,
+       (ARRAY['A','C','D','E'])[1 + (i % 4)],
+       m,
+       m >= 10
+FROM (SELECT i, round((random() * 20)::numeric, 2) AS m
+      FROM generate_series(1, 50000) AS i) t;
+SQL
+fi
+journal "rôle bdd : prêt sur ${IP_BDD1}:5432"
