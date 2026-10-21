@@ -54,6 +54,10 @@ File.binwrite(File.join(File.dirname(__FILE__), "config", "noeuds.yml"), NOEUDS.
 Vagrant.configure("2") do |config|
   config.vm.box              = BOITE
   config.vm.box_version      = VERSION
+  # Architecture explicite : pour cette version, la boîte arm64 est celle
+  # « par défaut » et Vagrant sous Windows ne détecte pas l'hôte, d'où
+  # l'erreur « doesn't support the provider ». arm64 seulement sur Mac M1/M2…
+  config.vm.box_architecture = (RUBY_PLATFORM =~ /arm64|aarch64/) ? "arm64" : "amd64"
   config.vm.box_check_update = false
   config.vm.boot_timeout     = 600
 
