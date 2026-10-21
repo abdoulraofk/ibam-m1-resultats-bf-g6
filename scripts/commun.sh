@@ -43,6 +43,9 @@ charger_env() {
 # Installe en un seul appel apt les paquets manquants de la liste.
 # « apt-get update » n'est lancé que si l'index a plus de 6 heures :
 # le provisionnement doit rester rapide derrière une connexion lente.
+# Le témoin n'est posé que si la mise à jour a VRAIMENT réussi : sans
+# --error-on=any, apt-get update répond 0 même quand un dépôt est
+# injoignable, et l'on resterait 6 h avec un index périmé.
 installer_paquets() {
     local manquants=() p
     for p in "$@"; do
@@ -53,9 +56,19 @@ installer_paquets() {
     mkdir -p "$ETAT_DIR"
     local tampon="$ETAT_DIR/apt-update"
     if [ ! -f "$tampon" ] || [ -n "$(find "$tampon" -mmin +360)" ]; then
-        journal "apt-get update"
-        apt-get update -qq
-        touch "$tampon"
+        local essai reussi=non
+        for essai in 1 2 3; do
+            journal "apt-get update (essai $essai/3)"
+            if apt-get update -qq --error-on=any; then
+                touch "$tampon"
+                reussi=oui
+                break
+            fi
+            if [ "$essai" -lt 3 ]; then sleep 5; fi
+        done
+        if [ "$reussi" = non ]; then
+            journal "ATTENTION : apt-get update en échec, installation avec l'index existant"
+        fi
     fi
     journal "installation : ${manquants[*]}"
     apt-get install -y -qq --no-install-recommends "${manquants[@]}"
