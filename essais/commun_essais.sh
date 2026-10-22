@@ -54,14 +54,15 @@ noeuds() {
         END { emettre() }'
 }
 
-# ip_de <machine> : adresse lue dans config/noeuds.yml
+# ip_de <machine> : adresse lue dans config/noeuds.yml (une seule ligne :
+# « exit » passe par END, qui ne doit pas l'afficher une seconde fois)
 ip_de() {
     tr -d '\r' < "$NOEUDS_YML" | awk -v voulu="$1" '
-        /^-/ { if (nom == voulu && ip != "") { print ip; exit } nom = ip = ""; sub(/^-[ ]*/, "") }
+        /^-/ { if (nom == voulu && ip != "") { print ip; trouve = 1; exit } nom = ip = ""; sub(/^-[ ]*/, "") }
         { l = $0; sub(/^[ ]+/, "", l); sub(/^:/, "", l); i = index(l, ":"); if (!i) next
           k = substr(l, 1, i - 1); v = substr(l, i + 1); gsub(/^[ ]+|[ ]+$|["\047]/, "", v)
           if (k == "nom") nom = v; else if (k == "ip") ip = v }
-        END { if (nom == voulu && ip != "") print ip }'
+        END { if (!trouve && nom == voulu && ip != "") print ip }'
 }
 
 # machine_qui_repond <url> : nom de la machine renvoyé par /info (JSON ou texte)

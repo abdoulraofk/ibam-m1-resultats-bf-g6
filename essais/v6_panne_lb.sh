@@ -2,7 +2,11 @@
 # V6 — Panne du répartiteur (extension E1) : « vagrant halt lb1 ».
 # Le service doit rester joignable à la même adresse : l'IP virtuelle
 # VRRP (.10 du sous-réseau), portée par lb1 puis reprise par lb2.
-# Mesure : temps de reprise après la bascule VRRP.
+# Mesure : plus longue interruption du service (plus long intervalle sans
+# aucune réponse 200) après le « vagrant halt ». On ne prend pas « panne ->
+# dernière erreur » : « vagrant halt » met jusqu'à 30 s à éteindre lb1, qui
+# sert normalement pendant ce temps, et une requête coupée en vol n'est
+# notée en erreur qu'à la fin de son délai de 10 s (curl -m 10).
 #
 # Usage : EXT=e1 essais/v6_panne_lb.sh [durée s, 40]
 # On interroge l'IP virtuelle directement par le réseau privé (l'hôte y
@@ -30,6 +34,7 @@ log "Avant la panne : $URL/info servi par lb1 -> 200"
 
 log ""
 log "--- Charge continue sur $URL/info, panne de lb1 à +10 s"
+DEBUT=$(ms); FIN=$(( DEBUT + DUREE * 1000 ))
 charge_continue "$URL/info" "$DUREE" "$TRAVAIL" 4 &
 CHARGE=$!
 sleep 10
@@ -41,16 +46,21 @@ wait "$CHARGE"
 log ""
 log "--- Bilan"
 bilan_charge "$TRAVAIL" "$T0" | tee -a "$SORTIE"
-DERNIERE="$(sort -n "$TRAVAIL" | awk '$2 != "200" { d = $1 } END { print d + 0 }')"
-if [ "$DERNIERE" -gt 0 ]; then
-    REPRISE=$(( DERNIERE - T0 ))
-    log "Temps de reprise (panne -> dernière erreur) : $(awk -v t="$REPRISE" 'BEGIN { printf "%.1f", t / 1000 }') s"
-else
-    REPRISE=0; log "Temps de reprise : aucune requête perdue"
+# Plus long intervalle sans réponse 200 après la panne (fin de la charge comprise)
+read -r COUPURE A B <<< "$(sort -n "$TRAVAIL" | awk -v t0="$T0" -v fin="$FIN" '
+    $2 == "200" { if (prec && $1 >= t0 && $1 - prec > max) { max = $1 - prec; a = prec; b = $1 } prec = $1 }
+    END { if (fin > prec && fin - prec > max) { max = fin - prec; a = prec; b = fin }
+          print max + 0, a + 0, b + 0 }')"
+if [ "$COUPURE" -gt 0 ]; then
+    log "Interruption maximale : $(awk -v c="$COUPURE" 'BEGIN { printf "%.1f", c / 1000 }') s, de +$(awk -v x="$A" -v t="$T0" 'BEGIN { printf "%.1f", (x - t) / 1000 }') s à +$(awk -v x="$B" -v t="$T0" 'BEGIN { printf "%.1f", (x - t) / 1000 }') s après « vagrant halt »"
 fi
+# Preuve de la bascule : moment où lb2 prend l'IP virtuelle (journal keepalived)
+log "Journal keepalived de lb2 :"
+vagrant ssh lb2 -c "sudo journalctl -u keepalived -o short-precise --since '@$(( T0 / 1000 - 5 ))' --no-pager | grep -E 'MASTER|BACKUP'" 2>/dev/null \
+    | tr -d '\r' | sed 's/^/    /' | tee -a "$SORTIE"
 log ""
-if [ "$REPRISE" -lt 5000 ]; then log "RÉSULTAT : V6 satisfait (service repris en moins de 5 s à la même adresse)"; CODE=0
-else log "RÉSULTAT : V6 NON satisfait (reprise en plus de 5 s)"; CODE=1; fi
+if [ "$COUPURE" -lt 5000 ]; then log "RÉSULTAT : V6 satisfait (service jamais interrompu plus de 5 s, à la même adresse)"; CODE=0
+else log "RÉSULTAT : V6 NON satisfait (interruption de plus de 5 s)"; CODE=1; fi
 
 log ""
 log "--- Remise en service : vagrant up lb1"
