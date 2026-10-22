@@ -31,8 +31,10 @@ Statut : proposées le 2026-10-19, à valider par le groupe.
 | Sujet | Convention |
 | --- | --- |
 | Port | 8000, écoute sur `0.0.0.0` (jamais `127.0.0.1`) |
-| Adresse de la base | Variable `BDD_HOTE`, écrite par `scripts/app.sh` à partir de `ip_de bdd1` ; modifiée par la bascule |
-| `GET /sante` | 200 si `SELECT 1` réussit sur la base, 503 sinon ; jamais 200 « par principe » |
+| Adresse de la base | Variable `BDD_HOTE` dans `/etc/resultats-app/bdd_hote.env`, écrite une seule fois par `scripts/app.sh` (`ip_de bdd1`), puis **relue à chaque requête** par l'application |
+| Bascule de la base | `scripts/bascule.sh` réécrit `BDD_HOTE` dans ce fichier sur chaque serveur applicatif, **sans redémarrer** `resultats-app` |
+| `GET /resultat?matricule=…` | Route imposée par le sujet : JSON du candidat, 404 si inconnu, 400 sans matricule, 503 si la base est indisponible |
+| `GET /sante` | 200 si `SELECT 1` réussit sur la base, 503 sinon ; jamais 200 « par principe » ; jamais le texte brut d'une erreur de la base |
 | `GET /info` | Renvoie le nom d'hôte de la machine qui répond |
 | Service systemd | `resultats-app` |
 
