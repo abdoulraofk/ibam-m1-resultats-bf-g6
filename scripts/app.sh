@@ -62,8 +62,10 @@ then
     redemarrer=oui
 fi
 
-# 5. La base d'abord, puis l'application
-attendre_port "$(ip_de bdd1)" 5432 180
+# 5. Pas d'attente de la base : l'application démarre sans elle et se
+#    connecte à chaque requête (/sante répond 503 tant qu'elle est absente).
+#    Après une bascule, bdd1 est arrêtée : l'attendre ferait échouer le
+#    provisionnement.
 
 systemctl enable --quiet resultats-app
 if [ "$redemarrer" = oui ]; then

@@ -3,7 +3,7 @@ import os
 import socket
 
 import psycopg2
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 # Écrits par scripts/app.sh. bdd_hote.env appartient ensuite à la bascule.
 FICHIERS_ENV = ["/etc/resultats-app/app.env", "/etc/resultats-app/bdd_hote.env"]
@@ -51,13 +51,23 @@ def sante():
         requete("SELECT 1")
         return jsonify(etat="ok", machine=socket.gethostname()), 200
     except Exception as erreur:
-        return jsonify(etat="ko", machine=socket.gethostname(),
-                       erreur=str(erreur)), 503
+        # Le détail reste dans le journal du service, jamais dans la réponse
+        app.logger.warning("sante : base injoignable : %s", erreur)
+        return jsonify(etat="ko", machine=socket.gethostname()), 503
 
 
 @app.get("/info")
 def info():
     return jsonify(machine=socket.gethostname())
+
+
+@app.get("/resultat")
+def resultat_contrat():
+    """Point d'entrée imposé par le sujet : GET /resultat?matricule=..."""
+    matricule = request.args.get("matricule", "").strip()
+    if not matricule:
+        return jsonify(erreur="paramètre matricule manquant"), 400
+    return resultat(matricule)
 
 
 @app.get("/resultats/<matricule>")
@@ -69,7 +79,8 @@ def resultat(matricule):
             (matricule,),
         )
     except Exception as erreur:
-        return jsonify(erreur="base indisponible", detail=str(erreur)), 503
+        app.logger.warning("resultat : base injoignable : %s", erreur)
+        return jsonify(erreur="base indisponible"), 503
     if ligne is None:
         return jsonify(erreur="matricule inconnu"), 404
     return jsonify(
@@ -86,6 +97,6 @@ def resultat(matricule):
 def accueil():
     return jsonify(
         service="RÉSULTATS-BF",
-        routes=["/resultats/<matricule>", "/sante", "/info"],
+        routes=["/resultat?matricule=...", "/sante", "/info"],
         machine=socket.gethostname(),
     )
