@@ -98,9 +98,22 @@ Chaque essai écrit sa sortie brute horodatée dans `essais/resultats/`.
 | Exigence / scénario | Commande | Ce qui est vérifié |
 | --- | --- | --- |
 | Contrôle général | `essais/controle_socle.sh` | Machines, 50 000 lignes, réplique, `/sante`, `/resultat`, répartition |
+| V1 — Répartition | `essais/v1_repartition.sh [appels]` | 20 appels à `/info` ; écart (max − min) / moyenne < 20 % |
+| V2 — Panne d'une app | `essais/v2_panne_app.sh [app1] [durée]` | `vagrant halt app1` sous charge : requêtes perdues, période dégradée, rien au-delà de 5 s |
+| V3 — Montée en charge | `essais/v3_charge.sh [passes]` | `ab -n 2000 -c 50` ; à lancer avec `NB_APP=2` puis `NB_APP=4` ; débit médian |
+| V4 — Panne de la base | `essais/v4_panne_bdd.sh` | `vagrant halt bdd1` : 503 propre, puis `scripts/bascule.sh` chronométré |
 | R1 / V5 — Reconstruction | `essais/v5_reconstruction.sh` | `destroy -f` puis `up` chronométré, puis contrôle général |
+| V6 — Panne du répartiteur | `EXT=e1 essais/v6_panne_lb.sh` | `vagrant halt lb1` : service repris sur l'IP virtuelle .10 en moins de 5 s |
 | R2 — Idempotence | `essais/r2_idempotence.sh` | Deux `vagrant provision` : aucun fichier de `/etc` modifié |
-| V1 à V4, V6 | à venir dans `essais/` | Répartition, panne d'une app, montée en charge, bascule, panne de lb1 |
+
+Chaque sortie commence par la commande, la date, le poste, `NB_APP`, `EXT`
+et le commit : une mesure doit pouvoir être refaite à l'identique.
+V2, V4 et V6 **arrêtent des machines** ; après V4, revenir à l'état initial
+avec `v5_reconstruction.sh` (ne jamais relancer bdd1 seule).
+
+**Supervision (E2)** : avec `EXT=e2` (ou `e1,e2`), Grafana est accessible
+depuis l'hôte par le réseau privé sur <http://192.168.61.41:3000>, sans
+compte (tableau de bord « RÉSULTATS-BF — Charge et pannes »).
 
 `v5_reconstruction.sh` **détruit les machines** : le lancer avec les mêmes
 `NB_APP` / `EXT` que lors de la création.
@@ -140,7 +153,7 @@ après une bascule ne recopie plus bdd1 par-dessus la base promue.
 | `Vagrantfile` | Définition des machines (table `NOEUDS`) |
 | `scripts/` | Provisionnement : `commun.sh` + un script par rôle |
 | `app/` | Service HTTP (`/resultat`, `/sante`, `/info`) |
-| `config/` | Configurations ; `noeuds.yml` y est engendré ; `keepalived/` pour E1 |
+| `config/` | Configurations ; `noeuds.yml` y est engendré ; `keepalived/` pour E1, `grafana/` (tableau de bord) pour E2 |
 | `essais/` | Scripts d'essai, lanceur Windows `lancer.cmd` ; sorties dans `essais/resultats/` |
 | `CONTRATS.md` | Conventions entre membres : ports, noms, schéma de la table |
 | `JOURNAL.md` | Journal de bord : décisions, difficultés |
