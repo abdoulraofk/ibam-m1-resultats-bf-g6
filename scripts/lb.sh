@@ -64,6 +64,15 @@ backend serveurs_app
     http-check expect status 200
     default-server inter 1s fall 2 rise 2
 $(lignes_serveurs)
+
+# Métriques pour Prometheus (extension E2) et page de statistiques.
+# Port interne au réseau privé : non redirigé vers l'hôte (R8).
+frontend statistiques
+    bind *:8404
+    http-request use-service prometheus-exporter if { path /metrics }
+    stats enable
+    stats uri /stats
+    stats refresh 5s
 CFG
 
 # 2. Vérifier la syntaxe AVANT de remplacer la configuration en service
