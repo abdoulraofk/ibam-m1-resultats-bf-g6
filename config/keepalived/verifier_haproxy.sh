@@ -26,7 +26,9 @@ PORT="${1:-80}"
 pidof haproxy >/dev/null 2>&1 || exit 1
 
 # 2. Répond-il en HTTP sur le port du frontend ? (code 000 = pas de réponse)
-code="$(curl -s -o /dev/null -w '%{http_code}' -m 1 "http://127.0.0.1:${PORT}/sante")"
+# /lb_sante est servi par HAProxy lui-même (monitor-uri dans scripts/lb.sh) :
+# la sonde ne consomme pas de tour du roundrobin vers les serveurs applicatifs.
+code="$(curl -s -o /dev/null -w '%{http_code}' -m 1 "http://127.0.0.1:${PORT}/lb_sante")"
 [ -n "$code" ] && [ "$code" != "000" ] || exit 2
 
 exit 0

@@ -72,6 +72,11 @@ defaults
 
 frontend entree_web
     bind *:80
+    # Réponse donnée par HAProxy lui-même, sans passer par un serveur :
+    # c'est ce qu'interroge la sonde keepalived (E1). Si elle passait par
+    # le backend, elle prendrait un tour du roundrobin chaque seconde et
+    # fausserait la répartition mesurée en V1.
+    monitor-uri /lb_sante
     default_backend serveurs_app
 
 backend serveurs_app
