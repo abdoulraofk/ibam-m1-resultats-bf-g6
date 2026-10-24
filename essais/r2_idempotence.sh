@@ -60,7 +60,9 @@ provisionner() {   # provisionner <numéro de passe>
 }
 
 log "R2 — Idempotence du provisionnement — $(date '+%Y-%m-%d %H:%M:%S')"
-log "Machines : ${MACHINES[*]}   NB_APP=${NB_APP:-2}   EXT=${EXT:-}"
+log "Poste    : $(hostname)   NB_APP=${NB_APP:-2}   EXT=${EXT:-}"
+log "Commit   : $(git log -1 --format='%h %s' 2>/dev/null)"
+log "Machines : ${MACHINES[*]}"
 
 provisionner 1
 for m in "${MACHINES[@]}"; do empreintes "$m" "$TRAVAIL/$m.avant"; done
