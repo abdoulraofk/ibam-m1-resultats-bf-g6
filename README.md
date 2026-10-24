@@ -159,6 +159,9 @@ croirait encore primaire.
 | `vagrant introuvable` en lançant un essai depuis PowerShell | `bash` y désigne WSL | Utiliser `essais\lancer.cmd <essai>` |
 | Une fenêtre s'ouvre puis se ferme | `.sh` lancé par double-clic ou `.\essais\x.sh` | Utiliser `essais\lancer.cmd <essai>` |
 | VM très lentes ou `vagrant up` qui échoue au démarrage | Mémoire libre insuffisante | Libérer 3 Go (fermer Docker Desktop, navigateurs) |
+| Les machines tournent mais rien ne répond sur 192.168.61.x (ni l'IP virtuelle, ni Grafana) | **Un VPN actif** capte le trafic vers le réseau privé | Désactiver le VPN pendant les essais |
+| `essais/v4_panne_bdd.sh` refuse de démarrer : « bdd2 est DÉJÀ primaire » | Une bascule a déjà eu lieu : la mesure ne testerait rien | `essais/v5_reconstruction.sh` d'abord, puis relancer V4 |
+| Dépôt cloné dans OneDrive, Dropbox ou un dossier synchronisé | La synchronisation verrouille `.vagrant/` et `config/noeuds.yml` pendant que les VM tournent | Cloner hors du dossier synchronisé, par exemple `C:\dev\` |
 | Machines allumées que `vagrant status` ne montre pas | `destroy` lancé sans les mêmes `NB_APP` / `EXT` | Relancer `vagrant destroy -f` avec les variables d'origine |
 
 ## Arborescence

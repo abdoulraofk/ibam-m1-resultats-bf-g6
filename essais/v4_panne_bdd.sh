@@ -27,7 +27,25 @@ etat_sante() {
 
 etat_sante; e="$ETAT"
 log "Avant la panne : /sante -> $e  $CORPS"
-[ "${e%% *}" = 200 ] || { log "ERREUR : le service n'est pas sain avant la panne, essai annulé"; fermer_sortie; exit 1; }
+if [ "${e%% *}" != 200 ]; then
+    log "ERREUR : le service n'est pas sain avant la panne, essai annulé."
+    log "  Si /sante ne répond pas du tout : un VPN actif coupe l'accès au réseau"
+    log "  privé des VM (192.168.61.0/24). Le désactiver pendant les essais."
+    fermer_sortie; exit 1
+fi
+
+# bdd2 doit encore être une réplique : si une bascule a déjà eu lieu, le
+# service est déjà servi par bdd2 et la mesure vaudrait 0 s sans rien tester.
+ETAT_BDD2="$(vagrant ssh bdd2 -c "sudo -u postgres psql -qtAc 'SELECT pg_is_in_recovery()'" 2>/dev/null | tr -d '\r' | tail -1)"
+case "$ETAT_BDD2" in
+    t) log "bdd2 est bien une réplique : la bascule reste à faire" ;;
+    f) log "ERREUR : bdd2 est DÉJÀ primaire — une bascule a déjà eu lieu."
+       log "  Mesurer V4 maintenant donnerait une durée proche de zéro sans rien"
+       log "  basculer. Reconstruire d'abord : essais/v5_reconstruction.sh"
+       fermer_sortie; exit 1 ;;
+    *) log "ERREUR : bdd2 ne répond pas (« $ETAT_BDD2 »), essai annulé"
+       fermer_sortie; exit 1 ;;
+esac
 
 log ""
 T0=$(ms)

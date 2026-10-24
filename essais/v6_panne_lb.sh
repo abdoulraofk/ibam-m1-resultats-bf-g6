@@ -29,7 +29,13 @@ if ! noeuds | grep -qx lb2; then
     fermer_sortie; exit 1
 fi
 code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$URL/info")"
-[ "$code" = 200 ] || { log "ERREUR : $URL/info répond « $code » avant la panne (VRRP actif ?)"; fermer_sortie; exit 1; }
+if [ "$code" != 200 ]; then
+    log "ERREUR : $URL/info répond « $code » avant la panne."
+    log "  Code 000 : l'IP virtuelle est injoignable. Causes habituelles :"
+    log "  un VPN actif capte le trafic vers 192.168.61.0/24 (le désactiver"
+    log "  pendant les essais), ou keepalived n'a pas démarré sur lb1."
+    fermer_sortie; exit 1
+fi
 log "Avant la panne : $URL/info servi par lb1 -> 200"
 
 log ""
