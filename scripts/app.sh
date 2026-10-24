@@ -62,10 +62,9 @@ then
     redemarrer=oui
 fi
 
-# 5. Pas d'attente de la base : l'application démarre sans elle et se
-#    connecte à chaque requête (/sante répond 503 tant qu'elle est absente).
-#    Après une bascule, bdd1 est arrêtée : l'attendre ferait échouer le
-#    provisionnement.
+# 5. Pas d'attente de la base : après une bascule, bdd1 est arrêtée.
+# L'application démarre sans base, /sante répond 503 jusqu'à son retour.
+journal "base configurée : $(cat /etc/resultats-app/bdd_hote.env)"
 
 systemctl enable --quiet resultats-app
 if [ "$redemarrer" = oui ]; then

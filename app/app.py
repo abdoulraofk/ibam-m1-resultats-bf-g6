@@ -26,6 +26,7 @@ def lire_config():
             pass
     return config
 
+
 def requete(sql, params=()):
     """Ouvre une connexion, exécute, renvoie une ligne, referme toujours."""
     c = lire_config()
