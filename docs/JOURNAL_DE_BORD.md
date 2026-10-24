@@ -28,18 +28,7 @@ Chaque membre relit et fusionne par l'intermédiaire de KUELA : une branche
 par personne, aucun commit direct sur `main`, et `main` ne reçoit que du
 code dont le provisionnement a été vérifié.
 
-## 2. Contrainte de départ : sept jours au lieu de quatre semaines
-
-Le sujet prévoit quatre semaines. La date de rendu étant fixée au
-**dimanche 25 octobre**, nous avons disposé de **sept jours**. Le planning a
-été comprimé en un jalon par soir, avec gel du code le vendredi.
-
-Conséquence assumée : nous avons retenu **deux extensions seulement**, E1
-(répartiteur redondant) et E2 (observabilité), et écarté E3 et E4. Les
-extensions valent 2 points sur 20, le socle en vaut 13 : la priorité est
-allée au socle.
-
-## 3. Décisions d'architecture et pourquoi
+## 2. Décisions d'architecture et pourquoi
 
 | Décision | Raison |
 | --- | --- |
@@ -50,7 +39,7 @@ allée au socle.
 | Sonde keepalived sur `/lb_sante` et non `/sante` | Sur `/sante`, la sonde traversait le répartiteur et prenait un tour de la répartition chaque seconde (voir § 4). |
 | Un fichier de résultat horodaté par essai | Chaque sortie porte la commande, la date, le poste, `NB_APP` et le commit : la mesure est reproductible. |
 
-## 4. Difficultés rencontrées et comment elles ont été levées
+## 3. Difficultés rencontrées et comment elles ont été levées
 
 **La version de boîte du sujet n'existe pas.** L'annexe A impose
 `bento/ubuntu-24.04` en version `202404.23.0`. Vagrant Cloud ne publie pas
@@ -97,7 +86,7 @@ d'erreur des essais nomment maintenant cette cause.
 d'essai ne voyaient pas les machines VirtualBox. Nous avons ajouté un
 lanceur `essais\lancer.cmd` qui appelle explicitement Git Bash.
 
-## 5. Ce que nous retenons
+## 4. Ce que nous retenons
 
 - **Mesurer tôt et comprendre chaque chiffre.** Les deux mesures les plus
   utiles du projet sont celles qui étaient fausses : 40 % d'écart et

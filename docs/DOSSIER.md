@@ -332,10 +332,10 @@ fois et compare l'empreinte de chaque fichier de `/etc` sur chaque machine.]*
 | Pas de chiffrement entre machines | Acceptable sur un réseau privé de laboratoire | TLS entre répartiteur et serveurs applicatifs |
 | Grafana en consultation libre | Acceptable pour une démonstration | Authentification et comptes nominatifs |
 | Toutes les machines sur un seul hôte | Les mesures de débit ne reflètent pas une production réelle | Répartir sur plusieurs machines physiques |
-| Deux extensions sur quatre | E3 (cache) et E4 (déploiement sans coupure) non traitées | Délai de sept jours au lieu de quatre semaines : priorité donnée au socle |
+| Deux extensions sur quatre | E3 (cache) et E4 (déploiement sans coupure) non traitées | Priorité donnée au socle, qui porte l'essentiel des exigences ; E4 est la plus accessible, la configuration du répartiteur s'y prête déjà |
 
 **Difficultés rencontrées.** Elles sont détaillées dans le journal de bord
-(`docs/JOURNAL_DE_BORD.md`, § 4) : version de boîte inexistante,
+(`docs/JOURNAL_DE_BORD.md`, § 3) : version de boîte inexistante,
 architecture non détectée sous Windows, `apt-get update` qui réussit en
 apparence, sonde qui fausse la répartition, reprovisionnement qui écrase une
 base promue, VPN qui coupe le réseau privé.
