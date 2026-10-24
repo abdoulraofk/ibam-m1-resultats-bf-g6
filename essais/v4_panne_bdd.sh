@@ -72,8 +72,10 @@ if [ -f scripts/bascule.sh ]; then
     if [ -n "$RETOUR" ]; then
         log "Service rétabli : /sante -> $e  $CORPS"
         log ""
-        log "Temps total de la procédure (panne -> service rétabli) : $(( (RETOUR - T0) / 1000 )) s"
-        log "  dont exécution de bascule.sh                          : $(( DUREE_B / 1000 )) s"
+        log "Durée de la procédure de bascule (lancement -> service rétabli) : $(awk -v t="$(( RETOUR - TB ))" 'BEGIN { printf "%.1f", t / 1000 }') s   <- mesure V4"
+        log "  dont exécution de bascule.sh                                   : $(awk -v t="$DUREE_B" 'BEGIN { printf "%.1f", t / 1000 }') s"
+        log "Indisponibilité totale vue du client (panne -> service rétabli) : $(( (RETOUR - T0) / 1000 )) s"
+        log "  (comprend l'arrêt de la VM et les 10 s d'observation de l'essai : une bascule déclenchée par un humain)"
         r="$(vagrant ssh bdd2 -c "sudo -u postgres psql -qtAc 'SELECT pg_is_in_recovery()'" 2>/dev/null | tr -d '\r' | tail -1)"
         log "bdd2 en réplique : ${r:-?} (attendu : f, bdd2 est devenue primaire)"
         [ "$PROPRE" = oui ] && { log "RÉSULTAT : V4 satisfait"; CODE=0; } || { log "RÉSULTAT : V4 partiel (bascule réussie, réponses pendant la panne non conformes)"; CODE=1; }

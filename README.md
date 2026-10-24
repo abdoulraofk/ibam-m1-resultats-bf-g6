@@ -131,9 +131,24 @@ essais/controle_socle.sh   # « les 4 serveurs répondent »
 La configuration HAProxy est réengendrée à chaque `vagrant up` du
 répartiteur : aucune modification manuelle.
 
-**Bascule de la base sur bdd2** — procédure `scripts/bascule.sh` à venir
-(scénario V4). La réplique est déjà protégée : un `vagrant provision bdd2`
-après une bascule ne recopie plus bdd1 par-dessus la base promue.
+**Bascule de la base sur bdd2** (R6), depuis l'hôte, quand bdd1 est en panne :
+
+```bash
+bash scripts/bascule.sh             # refuse si bdd1 tourne encore
+bash scripts/bascule.sh --forcer    # arrête d'abord PostgreSQL sur bdd1
+```
+
+1. Vérifie que bdd1 n'accepte plus d'écritures (jamais deux bases primaires).
+2. Promeut bdd2 (`pg_promote`).
+3. Réécrit `BDD_HOTE` dans `/etc/resultats-app/bdd_hote.env` sur chaque
+   serveur applicatif : l'application le relit à chaque requête, sans
+   redémarrage.
+4. Attend que `/sante` réponde 200 à travers le répartiteur.
+
+Chaque étape est horodatée ; `essais/v4_panne_bdd.sh` provoque la panne et
+chronomètre la procédure. Après une bascule, revenir à l'état initial avec
+`essais/v5_reconstruction.sh` : ne jamais relancer bdd1 seule, elle se
+croirait encore primaire.
 
 ## Dépannage
 
