@@ -1,0 +1,40 @@
+V1 — Répartition des requêtes (20 appels à /info)
+Commande : C:/Users/ASUS/Music/MASTER IBAM/Master 1/S2/Virtualisation et cloud Computing/TP_EN_GROUPE/ibam-m1-resultats-bf-g6/essais/v1_repartition.sh 
+Date     : 2026-10-23 15:01:11
+Poste    : LAPTOP-F3D9M4F4   NB_APP=4   EXT=e1
+Commit   : 0c6910d V6 : panne de lb1, reprise par lb2 sur l'IP virtuelle (vraie application)
+Adresse  : http://localhost:8080
+
+Serveurs déclarés : app1 app2 app3 app4 (4)
+
+--- Réponses brutes, dans l'ordre
+  1  app1
+  2  app2
+  3  app3
+  4  app4
+  5  app1
+  6  app2
+  7  app3
+  8  app4
+  9  app1
+ 10  app2
+ 11  app3
+ 12  app4
+ 13  app1
+ 14  app2
+ 15  app3
+ 16  app4
+ 17  app1
+ 18  app2
+ 19  app3
+ 20  app4
+
+--- Décompte par serveur
+app1     5
+app2     5
+app3     5
+app4     5
+
+Plus sollicité : 5   moins sollicité : 5   moyenne : 5.0
+Écart (max − min) / moyenne : 0.0 %
+RÉSULTAT : V1 satisfait (écart < 20 %)
