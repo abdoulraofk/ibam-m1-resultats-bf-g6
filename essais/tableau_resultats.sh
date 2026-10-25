@@ -27,24 +27,43 @@ contexte() {
         | sed 's/  */ /g; s/^ //; s/ $//'
 }
 
-fichiers() {   # fichiers <préfixe> : le plus récent, ou tous
-    local liste; liste="$(ls -1t "$DOSSIER"/$1*.txt 2>/dev/null)"
-    [ -z "$liste" ] && return
-    [ "$TOUS" = oui ] && printf '%s\n' "$liste" || printf '%s\n' "$liste" | head -1
+fichiers() {   # fichiers <préfixe> : du plus récent au plus ancien
+    ls -1t "$DOSSIER"/$1*.txt 2>/dev/null
 }
 
-ligne() {   # ligne <N°> <intitulé> <préfixe> <motif sed> <unité attendue>
+# ligne <N°> <intitulé> <préfixe> <motif sed>
+# Sans --tous : la mesure la plus récente **qui a abouti**. Un essai
+# interrompu (machine éteinte, réseau coupé) ne doit pas masquer une mesure
+# réussie plus ancienne ; les essais ignorés sont comptés en fin de ligne.
+ligne() {
     local n="$1" titre="$2" prefixe="$3" motif="$4" f v c
-    local trouve=non
+    local trouve=non ignores=0
     while read -r f; do
         [ -z "$f" ] && continue
         v="$(valeur "$f" "$motif")"
+        if [ -z "$v" ]; then
+            if [ "$TOUS" = oui ]; then
+                printf '| %s | %s | *(essai interrompu)* | %s | `%s` |\n' \
+                    "$n" "$titre" "$(contexte "$f")" "$(basename "$f")"
+            else
+                ignores=$((ignores + 1))
+            fi
+            continue
+        fi
         c="$(contexte "$f")"
-        [ -z "$v" ] && v="*(valeur absente de la sortie)*"
-        printf '| %s | %s | %s | %s | `%s` |\n' "$n" "$titre" "$v" "$c" "$(basename "$f")"
+        local note=""
+        [ "$ignores" -gt 0 ] && note=" *(+$ignores essai(s) interrompu(s) depuis)*"
+        printf '| %s | %s | %s%s | %s | `%s` |\n' "$n" "$titre" "$v" "$note" "$c" "$(basename "$f")"
         trouve=oui
+        [ "$TOUS" = oui ] || break
     done < <(fichiers "$prefixe")
-    [ "$trouve" = non ] && printf '| %s | %s | **à mesurer** | — | — |\n' "$n" "$titre"
+    if [ "$trouve" = non ]; then
+        if [ "$ignores" -gt 0 ]; then
+            printf '| %s | %s | **à mesurer** *(%s essai(s) interrompu(s))* | — | — |\n' "$n" "$titre" "$ignores"
+        else
+            printf '| %s | %s | **à mesurer** | — | — |\n' "$n" "$titre"
+        fi
+    fi
 }
 
 echo "# Résultats des scénarios de validation"
