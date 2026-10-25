@@ -82,6 +82,15 @@ est encore une réplique avant de provoquer la panne, et s'arrête sinon.
 répondait sur 192.168.61.x, machines pourtant démarrées. Les messages
 d'erreur des essais nomment maintenant cette cause.
 
+**Le temps de reconstruction dépend de l'hôte, pas du dépôt.** La même
+commande a pris 17 min 38 s sur un poste et a échoué après plus de six
+heures sur un autre. Nos scripts se sont pourtant comportés à l'identique.
+La différence tient à l'hôte : VirtualBox s'exécutant au-dessus de Hyper-V
+(activé par WSL 2 et Docker Desktop), à la mémoire réellement libre, et à un
+partage de connexion mobile qui faisait échouer les téléchargements. Les
+prérequis d'hôte sont désormais listés dans le README, et la question est
+discutée au § 6.1 du dossier.
+
 **Sous Windows, `bash` désigne WSL.** Lancés depuis PowerShell, les scripts
 d'essai ne voyaient pas les machines VirtualBox. Nous avons ajouté un
 lanceur `essais\lancer.cmd` qui appelle explicitement Git Bash.

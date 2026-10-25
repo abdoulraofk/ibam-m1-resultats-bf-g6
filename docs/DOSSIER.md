@@ -332,7 +332,43 @@ fois et compare l'empreinte de chaque fichier de `/etc` sur chaque machine.]*
 | Pas de chiffrement entre machines | Acceptable sur un réseau privé de laboratoire | TLS entre répartiteur et serveurs applicatifs |
 | Grafana en consultation libre | Acceptable pour une démonstration | Authentification et comptes nominatifs |
 | Toutes les machines sur un seul hôte | Les mesures de débit ne reflètent pas une production réelle | Répartir sur plusieurs machines physiques |
+| Le temps de reconstruction dépend fortement de l'hôte | De 17 minutes à plusieurs heures selon le poste (§ 6.1) | Déclarer les prérequis d'hôte, pas seulement les versions d'outils |
 | Deux extensions sur quatre | E3 (cache) et E4 (déploiement sans coupure) non traitées | Priorité donnée au socle, qui porte l'essentiel des exigences ; E4 est la plus accessible, la configuration du répartiteur s'y prête déjà |
+
+### 6.1 Ce que « reconstructible sur n'importe quel poste » veut vraiment dire
+
+Le sujet demande une infrastructure qui se reconstruit « sur n'importe quel
+poste ». Nous l'avons vérifié sur trois machines, et le résultat nous a
+surpris : **le code est bien reproductible, le temps de reconstruction ne
+l'est pas du tout.**
+
+| Poste | Résultat de `vagrant destroy -f && vagrant up` |
+| --- | --- |
+| Poste A | **17 min 38 s**, plateforme conforme, sans intervention |
+| Poste B | Échec après 6 h 18, puis échec après 1 h 07 |
+
+Sur le poste B, trois facteurs se cumulent :
+
+- **VirtualBox s'exécute au-dessus de Hyper-V.** WSL 2 et Docker Desktop
+  activent la plateforme de virtualisation de Windows ; VirtualBox n'a plus
+  l'accès direct au processeur et bascule dans un mode de compatibilité
+  nettement plus lent.
+- **La mémoire disponible est insuffisante.** Le socle demande 3 Go ; il en
+  restait 1,1 Go, les conteneurs Docker occupant le reste. Les machines
+  passent alors leur temps à échanger avec le disque.
+- **Le réseau est un partage de connexion mobile**, d'où des échecs de
+  résolution de noms et de téléchargement pendant l'installation des
+  paquets — c'est d'ailleurs ce qui a mis fin aux deux essais.
+
+**Ce que nous en retenons.** Un dépôt reproductible ne garantit pas une
+expérience reproductible. Nos scripts se sont comportés de la même manière
+sur les deux postes : mêmes étapes, mêmes messages, et les reprises
+automatiques d'`apt-get update` ont fonctionné comme prévu. Ce qui change,
+c'est l'hôte. Un projet livré en entreprise devrait donc déclarer ses
+prérequis d'hôte — mémoire libre réellement disponible, absence
+d'hyperviseur concurrent, lien réseau stable — au même titre que les
+versions de Vagrant et de VirtualBox. Nous avons ajouté ces trois points au
+tableau de dépannage du `README.md`.
 
 **Difficultés rencontrées.** Elles sont détaillées dans le journal de bord
 (`docs/JOURNAL_DE_BORD.md`, § 3) : version de boîte inexistante,

@@ -20,6 +20,16 @@ Virtualisation et Cloud Computing (Dr SOMDA), 2026-2027.
 Sous Windows, Docker Desktop et WSL réservent souvent 2 à 3 Go : les fermer
 pendant les essais si la mémoire libre est insuffisante.
 
+**Prérequis d'hôte, à vérifier avant de mesurer.** Le dépôt se reconstruit
+partout, mais la durée varie de 18 minutes à plusieurs heures selon le
+poste. Avant une campagne de mesures :
+
+| À vérifier | Pourquoi | Comment |
+| --- | --- | --- |
+| **Pas d'hyperviseur concurrent** (Hyper-V, WSL 2, Docker Desktop) | VirtualBox perd l'accès direct au processeur et devient beaucoup plus lent | Fermer Docker Desktop ; `bcdedit /enum {current}` doit montrer `hypervisorlaunchtype Off`, sinon VirtualBox tourne en mode de compatibilité |
+| **3 Go de mémoire réellement libres** | En dessous, les machines échangent avec le disque | Gestionnaire des tâches, onglet Performance |
+| **Lien réseau stable** | Chaque machine télécharge ses paquets ; un partage de connexion mobile fait échouer `apt-get` | Éviter le partage de connexion ; garder la boîte en cache (`vagrant box list`) |
+
 ## Démarrage
 
 ```bash
@@ -159,6 +169,9 @@ croirait encore primaire.
 | `vagrant introuvable` en lançant un essai depuis PowerShell | `bash` y désigne WSL | Utiliser `essais\lancer.cmd <essai>` |
 | Une fenêtre s'ouvre puis se ferme | `.sh` lancé par double-clic ou `.\essais\x.sh` | Utiliser `essais\lancer.cmd <essai>` |
 | VM très lentes ou `vagrant up` qui échoue au démarrage | Mémoire libre insuffisante | Libérer 3 Go (fermer Docker Desktop, navigateurs) |
+| `vagrant up` dure des heures au lieu de 18 minutes | VirtualBox s'exécute au-dessus de Hyper-V (activé par WSL 2 ou Docker Desktop) | Voir « Prérequis d'hôte » ci-dessus ; mesurer depuis un poste sans hyperviseur concurrent |
+| `Temporary failure resolving` ou `Unable to fetch some archives` pendant le provisionnement | Réseau instable : les machines ne peuvent pas télécharger leurs paquets | Lien filaire ou Wi-Fi stable ; relancer `vagrant provision` une fois le réseau revenu |
+| Une machine reste allumée après un `vagrant up` échoué | Vagrant s'est interrompu avant la fin | `vagrant destroy -f` avant de relancer |
 | Les machines tournent mais rien ne répond sur 192.168.61.x (ni l'IP virtuelle, ni Grafana) | **Un VPN actif** capte le trafic vers le réseau privé | Désactiver le VPN pendant les essais |
 | `essais/v4_panne_bdd.sh` refuse de démarrer : « bdd2 est DÉJÀ primaire » | Une bascule a déjà eu lieu : la mesure ne testerait rien | `essais/v5_reconstruction.sh` d'abord, puis relancer V4 |
 | Dépôt cloné dans OneDrive, Dropbox ou un dossier synchronisé | La synchronisation verrouille `.vagrant/` et `config/noeuds.yml` pendant que les VM tournent | Cloner hors du dossier synchronisé, par exemple `C:\dev\` |
