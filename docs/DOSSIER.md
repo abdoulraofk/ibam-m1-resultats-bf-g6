@@ -376,16 +376,43 @@ l'empreinte SHA-256 de chaque fichier entre les deux passes et signale, le
 cas échéant, ceux qui ont été modifiés, ajoutés ou supprimés — c'est
 exactement la vérification demandée par le sujet, rendue rejouable.
 
-### 5.9 Ce qui n'a pas pu être mesuré
+### 5.9 E2 — observabilité, en direct
 
-Les captures du tableau de bord Grafana (extension E2) n'ont pas pu être
-produites : la machine `obs` demande 768 Mo supplémentaires, et il ne
-restait que 0,5 Go de mémoire libre une fois les sept machines du socle et
-de l'extension E1 démarrées. Ajouter `obs` dans ces conditions aurait risqué
-de déstabiliser la plateforme en cours de mesure. La configuration de
-Prometheus et de Grafana (`scripts/obs.sh`, `config/grafana/`) reste
-vérifiée fonctionnellement sur le banc (§ 5.10 de la version précédente de
-ce dossier, conservé dans l'historique Git).
+La machine `obs` a finalement été démarrée en cours de journée, une fois de
+la mémoire libérée sur le poste de mesure. Prometheus interroge les sept
+machines toutes les cinq secondes ; Grafana affiche le tableau de bord
+`resultats-bf` défini dans `config/grafana/`.
+
+**Pendant une montée en charge** (`ab -c 20` depuis une machine au repos),
+le débit total grimpe dans le panneau « Débit total servi par le
+répartiteur », réparti entre les quatre serveurs applicatifs, pendant que
+le panneau « Processeur utilisé par machine » monte jusqu'à 100 % — la
+confirmation visuelle, en direct, du diagnostic du § 5.4 : c'est bien le
+processeur de l'hôte qui plafonne le débit, pas la capacité applicative.
+
+![Tableau de bord Grafana pendant une montée en charge](captures/grafana_montee_en_charge.png)
+
+*Figure 2 — Débit, répartition par serveur et processeur pendant V3.*
+
+**Pendant la panne d'un serveur applicatif**, combinée à une charge
+continue, le panneau « Machines joignables » marque l'arrêt d'app1 et les
+réponses en erreur 5xx apparaissent le temps que HAProxy l'écarte. Sous la
+charge cumulée de cet essai, le panneau « Serveurs applicatifs en service »
+est brièvement retombé à 0 : Prometheus n'a pas pu interroger HAProxy à
+temps, preuve supplémentaire, non recherchée, que la contention du
+processeur hôte affecte aussi la supervision elle-même, et pas seulement
+l'application.
+
+![Tableau de bord Grafana pendant la panne d'un serveur](captures/grafana_panne_serveur.png)
+
+*Figure 3 — Service dégradé, erreurs 5xx et machines injoignables pendant V2.*
+
+Ces deux captures ont été prises en conditions réelles, sans mise en scène :
+le second essai donne une image plus sévère que celle attendue par le
+scénario V2 seul, précisément parce qu'il combinait une panne et une charge
+simultanées sur un hôte déjà sous tension — un cas que le sujet ne demande
+pas, mais qui illustre honnêtement les limites du poste de mesure plutôt que
+celles de l'architecture.
 
 ## 6. Limites connues et ce que nous ferions autrement
 
