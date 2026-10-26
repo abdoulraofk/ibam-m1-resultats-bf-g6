@@ -25,3 +25,6 @@ Vagrantfile   text eol=lf
 *.jpg         binary
 *.pdf         binary
 *.docx        binary
+
+# Documents bureautiques : binaires, jamais normalisés
+*.pptx        binary
