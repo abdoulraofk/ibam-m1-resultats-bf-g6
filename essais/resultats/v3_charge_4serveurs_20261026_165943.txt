@@ -1,0 +1,168 @@
+V3 — Montée en charge, 4 serveurs applicatifs : ab -n 2000 -c 50, 3 passes
+Commande : essais/v3_charge.sh 3
+Date     : 2026-10-26 16:59:43
+Poste    : DESKTOP-CPS2H4P   NB_APP=4   EXT=
+Commit   : 291094f Finalise le dossier : résultats mesurés, vérifications sur banc, V3 non mesuré
+Adresse  : http://localhost:8080
+
+Origine de la charge : ab depuis bdd2, machine au repos, vers le répartiteur 192.168.61.11
+Requête : GET /resultat?matricule=M000042
+Concurrence : 50 connexions simultanées, 2000 requêtes par passe
+
+Lire le nombre de réponses non 2xx autant que le débit : au-delà de la
+capacité de la plateforme, les 503 sont renvoyés vite et gonflent
+artificiellement le nombre de requêtes par seconde.
+
+=== Passe 1 / 3
+This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 192.168.61.11 (be patient)
+
+
+Server Software:        gunicorn
+Server Hostname:        192.168.61.11
+Server Port:            80
+
+Document Path:          /resultat?matricule=M000042
+Document Length:        99 bytes
+
+Concurrency Level:      50
+Time taken for tests:   78.065 seconds
+Complete requests:      2000
+Failed requests:        1279
+   (Connect: 0, Receive: 0, Length: 1279, Exceptions: 0)
+Non-2xx responses:      1279
+Total transferred:      389815 bytes
+HTML transferred:       143003 bytes
+Requests per second:    25.62 [#/sec] (mean)
+Time per request:       1951.629 [ms] (mean)
+Time per request:       39.033 [ms] (mean, across all concurrent requests)
+Transfer rate:          4.88 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        1   49  67.0     11     329
+Processing:     4 1860 2984.1    421   17208
+Waiting:        0 1839 2984.4    396   17203
+Total:          8 1909 2973.1    491   17216
+
+Percentage of the requests served within a certain time (ms)
+  50%    491
+  66%   1107
+  75%   2906
+  80%   3464
+  90%   5110
+  95%   8644
+  98%  10670
+  99%  15621
+ 100%  17216 (longest request)
+Passe 1 : 25.62 requêtes/s, 1279 échec(s), 1279 réponse(s) non 2xx (réussite : 36.0 %)
+  ATTENTION : moins de la moitié des requêtes aboutissent à ce niveau de
+  concurrence. Le débit affiché compte aussi les réponses d'erreur,
+  renvoyées vite : ce n'est pas un débit utile.
+
+=== Passe 2 / 3
+This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 192.168.61.11 (be patient)
+
+
+Server Software:        gunicorn
+Server Hostname:        192.168.61.11
+Server Port:            80
+
+Document Path:          /resultat?matricule=M000042
+Document Length:        99 bytes
+
+Concurrency Level:      50
+Time taken for tests:   72.472 seconds
+Complete requests:      2000
+Failed requests:        1415
+   (Connect: 0, Receive: 0, Length: 1415, Exceptions: 0)
+Non-2xx responses:      1415
+Total transferred:      383429 bytes
+HTML transferred:       137155 bytes
+Requests per second:    27.60 [#/sec] (mean)
+Time per request:       1811.808 [ms] (mean)
+Time per request:       36.236 [ms] (mean, across all concurrent requests)
+Transfer rate:          5.17 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        2   20  32.0      8     224
+Processing:     7 1739 2861.6    565   16253
+Waiting:        0 1730 2862.6    553   16251
+Total:         12 1759 2859.7    590   16261
+
+Percentage of the requests served within a certain time (ms)
+  50%    590
+  66%    729
+  75%   1600
+  80%   3016
+  90%   5118
+  95%   8379
+  98%  10827
+  99%  15095
+ 100%  16261 (longest request)
+Passe 2 : 27.60 requêtes/s, 1415 échec(s), 1415 réponse(s) non 2xx (réussite : 29.2 %)
+  ATTENTION : moins de la moitié des requêtes aboutissent à ce niveau de
+  concurrence. Le débit affiché compte aussi les réponses d'erreur,
+  renvoyées vite : ce n'est pas un débit utile.
+
+=== Passe 3 / 3
+This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 192.168.61.11 (be patient)
+
+
+Server Software:        gunicorn
+Server Hostname:        192.168.61.11
+Server Port:            80
+
+Document Path:          /resultat?matricule=M000042
+Document Length:        99 bytes
+
+Concurrency Level:      50
+Time taken for tests:   63.867 seconds
+Complete requests:      2000
+Failed requests:        1335
+   (Connect: 0, Receive: 0, Length: 1335, Exceptions: 0)
+Non-2xx responses:      1335
+Total transferred:      387255 bytes
+HTML transferred:       140595 bytes
+Requests per second:    31.32 [#/sec] (mean)
+Time per request:       1596.673 [ms] (mean)
+Time per request:       31.933 [ms] (mean, across all concurrent requests)
+Transfer rate:          5.92 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        2   17  29.0      7     223
+Processing:     4 1523 2253.8    473   13607
+Waiting:        1 1515 2254.5    467   13598
+Total:          7 1540 2251.8    492   13612
+
+Percentage of the requests served within a certain time (ms)
+  50%    492
+  66%    818
+  75%   1943
+  80%   2985
+  90%   4757
+  95%   7302
+  98%   9125
+  99%   9585
+ 100%  13612 (longest request)
+Passe 3 : 31.32 requêtes/s, 1335 échec(s), 1335 réponse(s) non 2xx (réussite : 33.2 %)
+  ATTENTION : moins de la moitié des requêtes aboutissent à ce niveau de
+  concurrence. Le débit affiché compte aussi les réponses d'erreur,
+  renvoyées vite : ce n'est pas un débit utile.
+
+=== Synthèse, 4 serveurs
+Débit (requêtes/s) : médiane 27.6   min 25.6   max 31.3   sur 3 passe(s)
+Ligne pour le dossier : N=4  ->  27.6 requêtes/s (médiane)

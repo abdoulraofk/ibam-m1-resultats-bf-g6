@@ -1,0 +1,62 @@
+V4 — Panne de la base primaire bdd1 et bascule sur bdd2
+Commande : essais/v4_panne_bdd.sh 
+Date     : 2026-10-26 17:08:37
+Poste    : DESKTOP-CPS2H4P   NB_APP=4   EXT=
+Commit   : 291094f Finalise le dossier : résultats mesurés, vérifications sur banc, V3 non mesuré
+Adresse  : http://localhost:8080
+
+Avant la panne : /sante -> 200 application/json  {"etat":"ok","machine":"app2"}
+bdd2 est bien une réplique : la bascule reste à faire
+
+--- Panne : vagrant halt bdd1 (17:08:56)
+==> bdd1: Attempting graceful shutdown of VM...
+bdd1 arrêtée après 59 s
+
+--- Réaction du service (relevé toutes les 0,5 s pendant 10 s)
++60.6 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++61.7 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++62.8 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++63.9 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++65.1 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++66.3 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++67.5 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++68.7 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++69.7 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++70.8 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++71.9 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++73.0 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++74.0 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++75.0 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++76.1 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++77.2 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++78.4 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++79.5 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++80.6 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
++81.7 s  /sante -> 503 application/json; charset=utf-8  {"erreur":"service indisponible","source":"repartiteur"}
+
+Réponses pendant la panne : propres (503, sans erreur brute de la base)
+
+--- Bascule : bash scripts/bascule.sh
+[bascule +  0.3 s] début : bascule de la base vers bdd2 (192.168.61.32), serveurs : app1 app2 app3 app4
+[bascule + 32.3 s] 1. bdd1 arrêtée (poweroff) : pas de risque de double primaire
+[bascule + 64.0 s] 2. promotion de bdd2 (pg_promote)
+[bascule + 80.3 s]    bdd2 est primaire
+[bascule + 80.4 s] 3. BDD_HOTE=192.168.61.32 sur 4 serveur(s), sans redémarrage
+[bascule +144.4 s]    app1 : ÉCHEC de la mise à jour («  »)
+[bascule +146.2 s]    app2 : ÉCHEC de la mise à jour («  »)
+[bascule +148.3 s]    app3 : ÉCHEC de la mise à jour («  »)
+[bascule +148.9 s]    app4 : ÉCHEC de la mise à jour («  »)
+[bascule +149.0 s] 4. attente de /sante = 200 via http://localhost:8080
+[bascule +149.6 s] terminé : service rétabli sur bdd2
+bascule.sh terminé en 149 s (code 0)
+--- Attente du retour du service (jusqu'à 120 s)
+Service rétabli : /sante -> 200 application/json  {"etat":"ok","machine":"app2"}
+
+Durée de la procédure de bascule (lancement -> service rétabli) : 150.5 s   <- mesure V4
+  dont exécution de bascule.sh                                   : 149.8 s
+Indisponibilité totale vue du client (panne -> service rétabli) : 233 s
+  (comprend l'arrêt de la VM et les 10 s d'observation de l'essai : une bascule déclenchée par un humain)
+bdd2 en réplique : f (attendu : f, bdd2 est devenue primaire)
+RÉSULTAT : V4 satisfait
+
+Retour à l'état initial : essais/v5_reconstruction.sh (ne pas relancer bdd1 seule).

@@ -34,18 +34,33 @@ lancer_ab() {
         MSYS_NO_PATHCONV=1 docker run --rm --add-host=host.docker.internal:host-gateway \
             httpd:2.4-alpine ab -n "$REQUETES" -c "$CONCURRENCE" -s 30 "$hote_url$CHEMIN"
     else
-        vagrant ssh lb1 -c "command -v ab >/dev/null || sudo apt-get install -y -qq apache2-utils >/dev/null; ab -n $REQUETES -c $CONCURRENCE -s 30 'http://127.0.0.1$CHEMIN'" 2>/dev/null
+        # Depuis bdd2 : la réplique est au repos pendant la charge, alors que
+        # lb1 partage son processeur avec HAProxy et sous-estime le débit.
+        vagrant ssh "$ORIGINE_VM" -c "ab -n $REQUETES -c $CONCURRENCE -s 30 'http://$IP_LB$CHEMIN'" 2>/dev/null
     fi
 }
+# Machine qui émettra la charge si ab n'est disponible ni sur l'hôte ni dans
+# Docker : une machine au repos, jamais le répartiteur.
+ORIGINE_VM="${ORIGINE_VM:-bdd2}"
+IP_LB="$(ip_de lb1)"
+
 if command -v ab >/dev/null 2>&1; then ORIGINE="ab sur l'hôte"
 elif docker info >/dev/null 2>&1; then
     ORIGINE="ab dans un conteneur Docker sur l'hôte"
     # Image téléchargée AVANT les mesures : une coupure réseau ne doit pas
     # tomber au milieu d'une passe.
     docker image inspect httpd:2.4-alpine >/dev/null 2>&1 || docker pull -q httpd:2.4-alpine >/dev/null         || { echo "ERREUR : impossible de télécharger l'image httpd:2.4-alpine (réseau ?)" >&2; exit 1; }
-else ORIGINE="ab depuis lb1 (partage le processeur du répartiteur : débit sous-estimé)"; fi
+else
+    ORIGINE="ab depuis $ORIGINE_VM, machine au repos, vers le répartiteur $IP_LB"
+    vagrant ssh "$ORIGINE_VM" -c "command -v ab >/dev/null || sudo apt-get install -y -qq apache2-utils >/dev/null 2>&1" >/dev/null 2>&1
+fi
 log "Origine de la charge : $ORIGINE"
 log "Requête : GET $CHEMIN"
+log "Concurrence : $CONCURRENCE connexions simultanées, $REQUETES requêtes par passe"
+log ""
+log "Lire le nombre de réponses non 2xx autant que le débit : au-delà de la"
+log "capacité de la plateforme, les 503 sont renvoyés vite et gonflent"
+log "artificiellement le nombre de requêtes par seconde."
 
 DEBITS=()
 for p in $(seq "$PASSES"); do
@@ -58,7 +73,13 @@ for p in $(seq "$PASSES"); do
     non2xx="$(tr -d '\r' < "$SORTIE.passe" | awk '/^Non-2xx responses/ { print $3 }')"
     if [ -n "$rps" ]; then
         DEBITS+=("$rps")
-        echo "Passe $p : $rps requêtes/s, $echecs échec(s), ${non2xx:-0} réponse(s) non 2xx" | tee -a "$SORTIE"
+        reussite="$(awk -v n="${non2xx:-0}" -v t="$REQUETES" 'BEGIN { printf "%.1f", 100 * (t - n) / t }')"
+        echo "Passe $p : $rps requêtes/s, $echecs échec(s), ${non2xx:-0} réponse(s) non 2xx (réussite : ${reussite} %)" | tee -a "$SORTIE"
+        if awk -v r="$reussite" 'BEGIN { exit !(r < 50) }'; then
+            echo "  ATTENTION : moins de la moitié des requêtes aboutissent à ce niveau de" | tee -a "$SORTIE"
+            echo "  concurrence. Le débit affiché compte aussi les réponses d'erreur," | tee -a "$SORTIE"
+            echo "  renvoyées vite : ce n'est pas un débit utile." | tee -a "$SORTIE"
+        fi
     else
         faites="$(tr -d '\r' < "$SORTIE.passe" | awk '/^Total of .* requests completed/ { print $3 }')"
         if grep -q "timeout specified has expired" "$SORTIE.passe"; then

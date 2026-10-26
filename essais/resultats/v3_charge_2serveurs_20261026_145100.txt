@@ -1,0 +1,154 @@
+V3 — Montée en charge, 2 serveurs applicatifs : ab -n 2000 -c 50, 3 passes
+Commande : essais/v3_charge.sh 3
+Date     : 2026-10-26 14:51:00
+Poste    : DESKTOP-CPS2H4P   NB_APP=2   EXT=
+Commit   : 291094f Finalise le dossier : résultats mesurés, vérifications sur banc, V3 non mesuré
+Adresse  : http://localhost:8080
+
+Origine de la charge : ab depuis lb1 (partage le processeur du répartiteur : débit sous-estimé)
+Requête : GET /resultat?matricule=M000042
+
+=== Passe 1 / 3
+This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 127.0.0.1 (be patient)
+
+
+Server Software:        gunicorn
+Server Hostname:        127.0.0.1
+Server Port:            80
+
+Document Path:          /resultat?matricule=M000042
+Document Length:        99 bytes
+
+Concurrency Level:      50
+Time taken for tests:   8.052 seconds
+Complete requests:      2000
+Failed requests:        1894
+   (Connect: 0, Receive: 0, Length: 1894, Exceptions: 0)
+Non-2xx responses:      1894
+Total transferred:      360982 bytes
+HTML transferred:       116558 bytes
+Requests per second:    248.40 [#/sec] (mean)
+Time per request:       201.292 [ms] (mean)
+Time per request:       4.026 [ms] (mean, across all concurrent requests)
+Transfer rate:          43.78 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    1   3.9      0      43
+Processing:     0  153 672.7      3    3843
+Waiting:        0  153 672.4      2    3843
+Total:          0  154 673.3      3    3843
+
+Percentage of the requests served within a certain time (ms)
+  50%      3
+  66%      5
+  75%      8
+  80%      9
+  90%     22
+  95%    637
+  98%   3571
+  99%   3645
+ 100%   3843 (longest request)
+Passe 1 : 248.40 requêtes/s, 1894 échec(s), 1894 réponse(s) non 2xx
+
+=== Passe 2 / 3
+This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 127.0.0.1 (be patient)
+
+
+Server Software:        gunicorn
+Server Hostname:        127.0.0.1
+Server Port:            80
+
+Document Path:          /resultat?matricule=M000042
+Document Length:        99 bytes
+
+Concurrency Level:      50
+Time taken for tests:   7.172 seconds
+Complete requests:      2000
+Failed requests:        1902
+   (Connect: 0, Receive: 0, Length: 1902, Exceptions: 0)
+Non-2xx responses:      1902
+Total transferred:      360606 bytes
+HTML transferred:       116214 bytes
+Requests per second:    278.84 [#/sec] (mean)
+Time per request:       179.311 [ms] (mean)
+Time per request:       3.586 [ms] (mean, across all concurrent requests)
+Transfer rate:          49.10 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    1   2.0      0      17
+Processing:     0  137 628.3      2    3802
+Waiting:        0  136 628.0      2    3791
+Total:          0  138 629.1      3    3802
+
+Percentage of the requests served within a certain time (ms)
+  50%      3
+  66%      4
+  75%      5
+  80%      6
+  90%     16
+  95%     46
+  98%   3424
+  99%   3498
+ 100%   3802 (longest request)
+Passe 2 : 278.84 requêtes/s, 1902 échec(s), 1902 réponse(s) non 2xx
+
+=== Passe 3 / 3
+This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 127.0.0.1 (be patient)
+
+
+Server Software:        gunicorn
+Server Hostname:        127.0.0.1
+Server Port:            80
+
+Document Path:          /resultat?matricule=M000042
+Document Length:        99 bytes
+
+Concurrency Level:      50
+Time taken for tests:   8.106 seconds
+Complete requests:      2000
+Failed requests:        1889
+   (Connect: 0, Receive: 0, Length: 1889, Exceptions: 0)
+Non-2xx responses:      1889
+Total transferred:      361217 bytes
+HTML transferred:       116773 bytes
+Requests per second:    246.74 [#/sec] (mean)
+Time per request:       202.639 [ms] (mean)
+Time per request:       4.053 [ms] (mean, across all concurrent requests)
+Transfer rate:          43.52 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    1   2.3      0      38
+Processing:     0  157 676.9      2    3759
+Waiting:        0  156 676.6      2    3757
+Total:          0  157 677.0      3    3759
+
+Percentage of the requests served within a certain time (ms)
+  50%      3
+  66%      4
+  75%      5
+  80%      5
+  90%     13
+  95%    994
+  98%   3408
+  99%   3604
+ 100%   3759 (longest request)
+Passe 3 : 246.74 requêtes/s, 1889 échec(s), 1889 réponse(s) non 2xx
+
+=== Synthèse, 2 serveurs
+Débit (requêtes/s) : médiane 248.4   min 246.7   max 278.8   sur 3 passe(s)
+Ligne pour le dossier : N=2  ->  248.4 requêtes/s (médiane)
