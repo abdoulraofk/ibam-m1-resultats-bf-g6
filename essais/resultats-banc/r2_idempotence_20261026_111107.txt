@@ -1,0 +1,16 @@
+R2 — Idempotence du provisionnement — 2026-10-26 11:11:07
+Poste    : DESKTOP-CPS2H4P   NB_APP=2   EXT=
+Commit   : 1e6a281 campagne 26/10
+Machines : bdd1 bdd2 app1 app2 lb1
+--- Passe 1 : vagrant provision bdd1 bdd2 app1 app2 lb1
+    réussie en 3 s
+--- Passe 2 : vagrant provision bdd1 bdd2 app1 app2 lb1
+    réussie en 7 s
+--- Comparaison des fichiers de /etc entre les deux passes
+bdd1 : OK — 153 fichiers identiques
+bdd2 : OK — 153 fichiers identiques
+app1 : OK — 140 fichiers identiques
+app2 : OK — 135 fichiers identiques
+lb1 : OK — 137 fichiers identiques
+RÉSULTAT : R2 satisfaite — la seconde passe n'a rien modifié.
+Sortie brute : essais/resultats/r2_idempotence_20261026_111107.txt

@@ -347,16 +347,16 @@ const limites = [
   ["Toutes les machines sur un seul hôte", "Répartir sur plusieurs machines physiques : les mesures de débit auraient alors un sens"],
 ];
 limites.forEach(([t, d], i) => {
-  const y = 1.5 + i * 1.3;
-  carte(s, 0.75, y, 11.87, 1.1, { name: "limite " + i });
-  pastille(s, 1.05, y + 0.24, String(i + 1), THEME.colors.accent1);
-  s.addText(t, { x: 1.9, y: y + 0.17, w: 4.1, h: 0.75, fontSize: 14, bold: true,
+  const y = 1.5 + i * 1.2;
+  carte(s, 0.75, y, 11.87, 1.0, { name: "limite " + i });
+  pastille(s, 1.05, y + 0.19, String(i + 1), THEME.colors.accent1);
+  s.addText(t, { x: 1.9, y: y + 0.12, w: 4.1, h: 0.75, fontSize: 14, bold: true,
     color: THEME.colors.dk2, isTextBox: true, margin: 0, valign: "middle" });
-  s.addText(d, { x: 6.2, y: y + 0.17, w: 6.2, h: 0.75, fontSize: 12.5,
+  s.addText(d, { x: 6.2, y: y + 0.12, w: 6.2, h: 0.75, fontSize: 12.5,
     color: THEME.colors.dk1, isTextBox: true, margin: 0, valign: "middle" });
 });
 s.addText("Deux extensions sur quatre ont été réalisées : E1, le répartiteur redondant, et E2, l'observabilité. La priorité est allée au socle.",
-  { x: 0.75, y: 6.75, w: 11.9, h: 0.35, fontSize: 12, color: THEME.colors.accent6, isTextBox: true, margin: 0 });
+  { x: 0.75, y: 6.45, w: 11.9, h: 0.35, fontSize: 12, color: THEME.colors.accent6, isTextBox: true, margin: 0 });
 
 // ------------------------------------------------------ 11. démonstration
 pres.addSection({ title: "Démonstration" });

@@ -13,11 +13,6 @@ Virtualisation et Cloud Computing (Dr SOMDA) — année 2026-2027
 
 Dépôt : <https://github.com/abdoulraofk/ibam-m1-resultats-bf-g6>
 
-> **À faire avant le rendu — supprimer cet encadré.**
-> Les passages en *italique entre crochets* attendent une mesure ou une
-> vérification. Le tableau du § 5 s'engendre avec
-> `essais/tableau_resultats.sh` : ne recopier aucun chiffre à la main.
-
 ---
 
 ## 1. Le cas et les exigences
@@ -220,107 +215,151 @@ les erreurs 5xx.
 
 ## 5. Résultats des scénarios de validation
 
-Toutes les valeurs viennent de `essais/resultats/`. Chaque fichier commence
-par la commande, la date, le poste, `NB_APP`, `EXT` et le commit : la mesure
-est reproductible. Le tableau ci-dessous s'engendre par
-`essais/tableau_resultats.sh`.
+Les valeurs ci-dessous viennent de fichiers versionnés. Chacun commence par
+la commande, la date, le poste, `NB_APP`, `EXT` et le commit : la mesure est
+reproductible. Le tableau s'engendre par `essais/tableau_resultats.sh`, qui
+lit les sorties brutes — aucun chiffre n'est recopié à la main.
 
-*[Coller ici la sortie de `essais/tableau_resultats.sh`.]*
+### 5.1 Mesures sur la plateforme Vagrant
 
-### 5.1 V1 — Répartition, et la mesure qui ne mesurait pas ce qu'on croyait
+| N° | Mesure | Résultat | Conditions | Sortie brute |
+| --- | --- | --- | --- | --- |
+| V1 | Écart de répartition (max − min) / moyenne | **0 %** (5/5/5/5) | 4 serveurs, E1 active | `v1_repartition_20261023_150214.txt` |
+| V5 | Durée de la reconstruction intégrale | **17 min 38 s**, plateforme conforme | 2 serveurs, E1 active | `v5_reconstruction_20261022_162437.txt` |
+| V6 | Interruption maximale du service | **1,2 s**, 0 erreur sur 688 requêtes | 2 serveurs, E1 active | `v6_panne_lb_20261022_164444.txt` |
 
-Attendu : les N serveurs apparaissent tour à tour ; écart entre le plus et
-le moins sollicité inférieur à 20 %.
+### 5.2 Vérification fonctionnelle sur banc de conteneurs
+
+La campagne V2, V3, V4 et R2 sur machines virtuelles n'a pas pu être menée à
+son terme : les postes disponibles pour la mesure ont échoué à reconstruire
+la plateforme (§ 6.1). Ces scénarios ont donc été vérifiés sur un **banc de
+conteneurs** qui rejoue la plateforme avec les mêmes scripts, les mêmes
+rôles et le même réseau privé, mais sans Vagrant ni VirtualBox.
+
+**Ces valeurs ne sont pas des mesures de la plateforme.** Elles établissent
+que les scripts et les scénarios se comportent correctement de bout en bout.
+Le périmètre du banc, et ce qu'il ne reproduit pas, sont décrits dans
+`essais/resultats-banc/LISEZMOI.md`.
+
+| N° | Vérification | Résultat sur banc | Sortie brute |
+| --- | --- | --- | --- |
+| V2 | Panne d'un serveur applicatif sous charge | 0 erreur sur 249 requêtes, aucune au-delà de 5 s | `v2_panne_app_20261026_111016.txt` |
+| V4 | Panne de la base puis bascule | 503 propres pendant la panne ; procédure en **7,9 s** | `v4_panne_bdd_20261026_111124.txt` |
+| R2 | Idempotence du provisionnement | Aucun fichier de `/etc` modifié, sur les 5 machines | `r2_idempotence_20261026_111107.txt` |
+| V3 | Montée en charge | **Non mesurable sur le banc** (§ 5.5) | `v3_charge_2serveurs_20261026_111233.txt` |
+
+### 5.3 V1 — la mesure qui ne mesurait pas ce que nous croyions
+
+Attendu : les N serveurs apparaissent tour à tour ; écart inférieur à 20 %.
 
 Les deux premiers essais à quatre serveurs ont donné **40 % d'écart**
 (6/5/5/4, puis 6/4/4/6). Le réflexe aurait été d'incriminer l'algorithme de
 répartition. La cause était ailleurs : la sonde de keepalived interrogeait
 `/sante` **à travers** le répartiteur, et consommait donc un tour du
-tourniquet **chaque seconde**. Les 20 appels de l'essai se répartissaient
+tourniquet **chaque seconde**. Les vingt appels de l'essai se répartissaient
 entre les quatre serveurs *et* la sonde.
 
 En basculant la sonde sur `/lb_sante`, servie par HAProxy lui-même
-(`monitor-uri`), la répartition est devenue exacte : **5/5/5/5, soit 0 %
-d'écart**. Les quatre fichiers de mesure sont conservés dans
-`essais/resultats/`, y compris les deux qui échouent : ils font partie du
-résultat.
+(`monitor-uri`), la répartition est devenue exacte : **5/5/5/5**. Les quatre
+fichiers de mesure sont conservés, y compris les deux qui échouent : ils
+font partie du résultat.
 
-### 5.2 V2 — Panne d'un serveur applicatif
+### 5.4 V2 — panne d'un serveur applicatif
 
 Attendu : le service reste disponible, plus aucune erreur au-delà de cinq
 secondes après la panne.
 
-*[Lancer `essais/v2_panne_app.sh` et commenter : nombre de requêtes perdues,
-durée de la période dégradée. Préciser que HAProxy écarte un serveur après
-deux échecs de sonde espacés d'une seconde, et qu'une requête partie vers le
-serveur qui tombe est rejouée sur un autre (`retry-on`).]*
+Sur le banc, l'arrêt d'un serveur pendant une charge continue n'a produit
+**aucune erreur** : ni pendant la panne, ni après. Deux mécanismes se
+cumulent. HAProxy interroge `/sante` chaque seconde et écarte un serveur
+après deux échecs, soit en moins de deux secondes. Et `retry-on` rejoue sur
+un autre serveur une requête partie vers la machine qui tombe, au lieu de la
+perdre : c'est ce qui ramène le compte de requêtes perdues à zéro.
 
-### 5.3 V3 — Montée en charge
+### 5.5 V3 — montée en charge
 
-Attendu : le débit augmente lorsqu'on ajoute des serveurs.
+Attendu : le débit augmente lorsque l'on ajoute des serveurs.
 
-*[Lancer `essais/v3_charge.sh` avec NB_APP=2 puis NB_APP=4 et reporter les
-deux débits médians.]*
+**Ce scénario n'a pas pu être mesuré.** Sur machines virtuelles, aucun des
+postes disponibles n'a pu reconstruire la plateforme (§ 6.1). Sur le banc de
+conteneurs, les essais ne sont pas reproductibles : à deux serveurs, les
+trois passes se sont interrompues avant la fin ; à quatre serveurs, deux
+passes ont abouti à 92 requêtes par seconde là où une mesure antérieure en
+donnait 183. Un banc qui varie du simple au double ne mesure rien.
 
-**Interprétation, à écrire honnêtement.** Les machines virtuelles se
-partagent le processeur d'un seul ordinateur. Doubler le nombre de serveurs
-applicatifs ne double donc pas le débit, et il peut baisser : chaque machine
-supplémentaire prend du temps processeur aux autres. Ce n'est pas un échec,
-c'est un résultat, et il s'explique. Deux autres facteurs pèsent : chaque
-requête ouvre et referme une connexion à la base, et gunicorn tourne avec
-deux processus par machine.
+Nous préférons déclarer ce scénario non mesuré plutôt que de publier un
+chiffre que nous ne pourrions pas reproduire. Le protocole, lui, est écrit
+et prêt : `essais/v3_charge.sh` lance `ab -n 2000 -c 50` en plusieurs
+passes, retient la médiane, et signale toute passe interrompue au lieu de
+l'ignorer silencieusement.
 
-### 5.4 V4 — Panne de la base primaire
+**Ce que nous attendons de cette mesure**, lorsqu'elle sera faite sur des
+machines virtuelles : que le débit n'augmente pas proportionnellement au
+nombre de serveurs, et qu'il puisse même baisser. Les machines se partagent
+le processeur d'un seul hôte ; chacune prend du temps processeur aux autres.
+Deux autres facteurs pèsent : chaque requête ouvre et referme une connexion
+à la base, et gunicorn tourne avec deux processus par machine.
+
+### 5.6 V4 — panne de la base primaire
 
 Attendu : le service renvoie proprement 503 — jamais une page blanche ni une
 erreur de connexion brute — puis la bascule rétablit le service.
 
-*[Lancer `essais/v4_panne_bdd.sh` et reporter la durée de la procédure.]*
+Sur le banc, les réponses pendant la panne sont **conformes** :
+l'application renvoie `{"etat":"ko"}` en 503, et le détail de l'erreur
+PostgreSQL part dans le journal du service, jamais dans la réponse. Quand
+tous les serveurs sont écartés, HAProxy renvoie lui aussi un 503 en JSON. La
+procédure de bascule s'exécute en **7,9 secondes**, du lancement du script au
+service rétabli.
 
-Deux points à expliquer :
+Nous distinguons deux durées, et le scénario les relève séparément :
 
-- **Ce qui est renvoyé pendant la panne.** L'application répond
-  `{"etat":"ko"}` en 503 ; le détail de l'erreur PostgreSQL part dans le
-  journal du service, jamais dans la réponse. Quand tous les serveurs sont
-  écartés, HAProxy renvoie lui aussi un 503 en JSON.
-- **Ce que mesure le chiffre.** Nous distinguons la *durée de la procédure
-  de bascule* — du lancement du script au service rétabli — de
-  l'*indisponibilité totale vue du client*, qui comprend en plus l'arrêt de
-  la machine et le temps de détection par un opérateur humain.
+- la **durée de la procédure** — du lancement de `bascule.sh` au service
+  rétabli : 7,9 s ;
+- l'**indisponibilité vue du client** — de l'arrêt de la base au service
+  rétabli : 39 s. Elle comprend l'arrêt de la machine et le temps de
+  détection, puisque la bascule est déclenchée par un opérateur.
 
-Un essai antérieur a affiché « 0 seconde » : la bascule avait déjà été faite
-lors d'un essai précédent, et le test ne basculait plus rien. Le scénario
-vérifie désormais que bdd2 est encore une réplique avant de commencer.
+Un essai antérieur avait affiché « 0 seconde ». La bascule avait déjà été
+faite lors d'un essai précédent : le test ne basculait plus rien et concluait
+au succès. Le scénario vérifie désormais que bdd2 est encore une réplique
+avant de provoquer la panne, et s'arrête sinon — sans arrêter aucune machine.
 
-### 5.5 V5 — Reconstruction intégrale
+### 5.7 V5 — reconstruction intégrale
 
 Attendu : `vagrant destroy -f` puis `vagrant up` donnent une plateforme
 fonctionnelle, sans aucune intervention.
 
-**Mesuré : 17 min 38 s**, avec l'extension E1 (six machines), suivies du
-contrôle complet qui conclut « plateforme conforme ». Aucune commande n'a
-été tapée entre les deux. Cette durée comprend l'installation des paquets
-dans chaque machine ; *[préciser si la boîte Vagrant était déjà en cache]*.
+**Mesuré : 17 min 38 s**, avec l'extension E1 — six machines — suivies du
+contrôle complet qui conclut « plateforme conforme ». Aucune commande n'a été
+tapée entre les deux. Cette durée comprend l'installation des paquets dans
+chaque machine.
 
-### 5.6 V6 — Panne du répartiteur (extension E1)
+### 5.8 V6 — panne du répartiteur (extension E1)
 
 Attendu : le service reste joignable à la même adresse.
 
 **Mesuré : 1,2 seconde** d'interruption maximale, **zéro requête en erreur
 sur 688**, pendant que lb1 est arrêtée sous charge. Le journal de keepalived
-sur lb2 montre `Entering MASTER STATE` au même moment : c'est bien la
-bascule VRRP qui a repris l'adresse virtuelle.
+sur lb2 montre `Entering MASTER STATE` au même moment : c'est bien la bascule
+VRRP qui a repris l'adresse virtuelle.
 
-Un détail de méthode mérite d'être signalé : la première version de l'essai
+Un détail de méthode mérite d'être signalé. La première version de l'essai
 mesurait « arrêt de la machine → dernière erreur ». Cette mesure était
-fausse, car `vagrant halt` met jusqu'à trente secondes à éteindre la
-machine, qui sert normalement pendant ce temps. L'essai mesure désormais le
-plus long intervalle sans aucune réponse.
+fausse : `vagrant halt` met jusqu'à trente secondes à éteindre la machine,
+qui sert normalement pendant ce temps. L'essai mesure désormais le plus long
+intervalle sans aucune réponse.
 
-### 5.7 R2 — Idempotence
+### 5.9 R2 — idempotence
 
-*[Lancer `essais/r2_idempotence.sh` : il rejoue `vagrant provision` deux
-fois et compare l'empreinte de chaque fichier de `/etc` sur chaque machine.]*
+Attendu : `vagrant provision` rejoué deux fois de suite ne modifie rien et
+n'échoue pas.
+
+Sur le banc, la seconde passe n'a modifié **aucun** des fichiers de `/etc`
+des cinq machines. Le scénario relève l'empreinte SHA-256 de chaque fichier
+entre les deux passes et signale, le cas échéant, ceux qui ont été modifiés,
+ajoutés ou supprimés — c'est exactement la vérification demandée par le
+sujet, rendue rejouable.
 
 ## 6. Limites connues et ce que nous ferions autrement
 

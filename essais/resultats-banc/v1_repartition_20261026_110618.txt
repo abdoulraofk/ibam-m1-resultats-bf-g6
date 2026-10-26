@@ -1,0 +1,40 @@
+V1 — Répartition des requêtes (20 appels à /info)
+Commande : essais/v1_repartition.sh 20
+Date     : 2026-10-26 11:06:18
+Poste    : DESKTOP-CPS2H4P   NB_APP=4   EXT=
+Commit   : 1e6a281 campagne 26/10
+Adresse  : http://localhost:18080
+
+Serveurs déclarés : app1 app2 app3 app4 (4)
+
+--- Réponses brutes, dans l'ordre
+  1  app3
+  2  app4
+  3  app1
+  4  app2
+  5  app3
+  6  app4
+  7  app1
+  8  app2
+  9  app3
+ 10  app4
+ 11  app1
+ 12  app2
+ 13  app3
+ 14  app4
+ 15  app1
+ 16  app2
+ 17  app3
+ 18  app4
+ 19  app1
+ 20  app2
+
+--- Décompte par serveur
+app1     5
+app2     5
+app3     5
+app4     5
+
+Plus sollicité : 5   moins sollicité : 5   moyenne : 5.0
+Écart (max − min) / moyenne : 0.0 %
+RÉSULTAT : V1 satisfait (écart < 20 %)

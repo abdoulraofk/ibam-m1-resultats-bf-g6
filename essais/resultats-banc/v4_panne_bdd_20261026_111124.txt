@@ -1,0 +1,60 @@
+V4 — Panne de la base primaire bdd1 et bascule sur bdd2
+Commande : essais/v4_panne_bdd.sh 
+Date     : 2026-10-26 11:11:24
+Poste    : DESKTOP-CPS2H4P   NB_APP=2   EXT=
+Commit   : 1e6a281 campagne 26/10
+Adresse  : http://localhost:18080
+
+Avant la panne : /sante -> 200 application/json  
+bdd2 est bien une réplique : la bascule reste à faire
+
+--- Panne : vagrant halt bdd1 (11:11:25)
+==> bdd1: Attempting graceful shutdown of VM...
+bdd1 arrêtée après 6 s
+
+--- Réaction du service (relevé toutes les 0,5 s pendant 10 s)
++ 9.7 s  /sante -> 503 application/json  
++10.7 s  /sante -> 503 application/json; charset=utf-8  
++11.7 s  /sante -> 503 application/json; charset=utf-8  
++13.1 s  /sante -> 503 application/json; charset=utf-8  
++14.5 s  /sante -> 503 application/json; charset=utf-8  
++15.6 s  /sante -> 503 application/json; charset=utf-8  
++16.9 s  /sante -> 503 application/json; charset=utf-8  
++17.9 s  /sante -> 503 application/json; charset=utf-8  
++19.0 s  /sante -> 503 application/json; charset=utf-8  
++20.0 s  /sante -> 503 application/json; charset=utf-8  
++21.1 s  /sante -> 503 application/json; charset=utf-8  
++22.3 s  /sante -> 503 application/json; charset=utf-8  
++23.5 s  /sante -> 503 application/json; charset=utf-8  
++24.5 s  /sante -> 503 application/json; charset=utf-8  
++25.7 s  /sante -> 503 application/json; charset=utf-8  
++27.0 s  /sante -> 503 application/json; charset=utf-8  
++28.1 s  /sante -> 503 application/json; charset=utf-8  
++29.2 s  /sante -> 503 application/json; charset=utf-8  
++30.2 s  /sante -> 503 application/json; charset=utf-8  
++31.1 s  /sante -> 503 application/json; charset=utf-8  
+
+Réponses pendant la panne : propres (503, sans erreur brute de la base)
+
+--- Bascule : bash scripts/bascule.sh
+[bascule +  0.2 s] début : bascule de la base vers bdd2 (10.61.0.32), serveurs : app1 app2
+[bascule +  1.7 s] 1. bdd1 arrêtée (poweroff) : pas de risque de double primaire
+[bascule +  2.7 s] 2. promotion de bdd2 (pg_promote)
+[bascule +  3.4 s]    bdd2 est primaire
+[bascule +  3.5 s] 3. BDD_HOTE=10.61.0.32 sur 2 serveur(s), sans redémarrage
+[bascule +  5.2 s]    app1 -> bdd2
+[bascule +  5.2 s]    app2 -> bdd2
+[bascule +  5.3 s] 4. attente de /sante = 200 via http://localhost:18080
+[bascule +  7.3 s] terminé : service rétabli sur bdd2
+bascule.sh terminé en 7 s (code 0)
+--- Attente du retour du service (jusqu'à 120 s)
+Service rétabli : /sante -> 200 application/json  
+
+Durée de la procédure de bascule (lancement -> service rétabli) : 7.9 s   <- mesure V4
+  dont exécution de bascule.sh                                   : 7.4 s
+Indisponibilité totale vue du client (panne -> service rétabli) : 39 s
+  (comprend l'arrêt de la VM et les 10 s d'observation de l'essai : une bascule déclenchée par un humain)
+bdd2 en réplique : f (attendu : f, bdd2 est devenue primaire)
+RÉSULTAT : V4 satisfait
+
+Retour à l'état initial : essais/v5_reconstruction.sh (ne pas relancer bdd1 seule).
