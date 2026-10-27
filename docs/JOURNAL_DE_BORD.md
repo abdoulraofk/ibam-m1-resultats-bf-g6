@@ -87,8 +87,7 @@ heures sur un autre. Nos scripts se sont pourtant comportés à l'identique.
 La différence tient à l'hôte : VirtualBox s'exécutant au-dessus de Hyper-V
 (activé par WSL 2 et Docker Desktop), à la mémoire réellement libre, et à un
 partage de connexion mobile qui faisait échouer les téléchargements. Les
-prérequis d'hôte sont désormais listés dans le README, et la question est
-discutée au § 6.1 du dossier.
+prérequis d'hôte sont désormais listés dans le README.
 
 **Sous Windows, `bash` désigne WSL.** Lancés depuis PowerShell, les scripts
 d'essai ne voyaient pas les machines VirtualBox. Nous avons ajouté un

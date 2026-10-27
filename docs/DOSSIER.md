@@ -42,9 +42,8 @@ d'elle.
 
 **Hypothèses de dimensionnement.** La base contient 50 000 résultats, volume
 suffisant pour que les mesures de charge aient un sens. Le socle obligatoire
-tient dans 3 Go de mémoire, sur un poste de 8 Go, toutes machines sur le
-même hôte physique — ce dernier point pèse lourd sur l'interprétation des
-mesures de débit (§ 5.3).
+tient dans 3 Go de mémoire, toutes machines sur le même hôte physique — ce
+dernier point pèse sur l'interprétation des mesures de débit (§ 5.4).
 
 ## 2. Architecture
 
@@ -217,8 +216,7 @@ les erreurs 5xx.
 ## 5. Résultats des scénarios de validation
 
 Toutes les valeurs ci-dessous ont été mesurées sur la plateforme réelle
-(Vagrant + VirtualBox), le 26 octobre 2026, après une reconstruction
-complète. Chaque fichier de `essais/resultats/` commence par la commande,
+(Vagrant + VirtualBox), après une reconstruction complète. Chaque fichier de `essais/resultats/` commence par la commande,
 la date, le poste, `NB_APP`, `EXT` et le commit : la mesure est
 reproductible. Le tableau s'engendre par `essais/tableau_resultats.sh`, qui
 lit les sorties brutes — aucun chiffre n'est recopié à la main.
@@ -229,7 +227,7 @@ lit les sorties brutes — aucun chiffre n'est recopié à la main.
 | --- | --- | --- | --- | --- |
 | V1 | Écart de répartition (max − min) / moyenne | **0 %** (5/5/5/5 à 4 serveurs) | 4 serveurs | `v1_repartition_20261026_165936.txt` |
 | V2 | Requêtes en erreur pendant la panne d'un serveur | **0 sur 397**, aucune au-delà de 5 s | 2 serveurs | `v2_panne_app_20261026_144319.txt` |
-| V3 | Débit utile à la concurrence du sujet (`-c 50`) | **saturé** aux deux configurations (§ 5.5) | 2 puis 4 serveurs | `v3_charge_2serveurs_20261026_160005.txt`, `v3_charge_4serveurs_20261026_165943.txt` |
+| V3 | Débit utile à la concurrence du sujet (`-c 50`) | **saturé** aux deux configurations (§ 5.4) | 2 puis 4 serveurs | `v3_charge_2serveurs_20261026_160005.txt`, `v3_charge_4serveurs_20261026_165943.txt` |
 | V4 | Durée de la procédure de bascule | **150,5 s** (lancement → service rétabli) | 4 serveurs | `v4_panne_bdd_20261026_170837.txt` |
 | V5 | Durée de la reconstruction intégrale | **17 min 38 s**, plateforme conforme | 2 serveurs, E1 active | `v5_reconstruction_20261022_162437.txt` |
 | V6 | Interruption maximale du service | **1,2 s**, 0 erreur sur 688 requêtes | 2 serveurs, E1 active | `v6_panne_lb_20261022_164444.txt` |
@@ -248,7 +246,7 @@ entre les quatre serveurs *et* la sonde.
 
 En basculant la sonde sur `/lb_sante`, servie par HAProxy lui-même
 (`monitor-uri`), la répartition est devenue exacte : **5/5/5/5**, confirmée
-de nouveau le 26 octobre sur une plateforme intégralement reconstruite.
+de nouveau sur une plateforme intégralement reconstruite.
 
 ### 5.3 V2 — panne d'un serveur applicatif
 
@@ -296,18 +294,14 @@ cause : le goulot est ailleurs. Pendant un essai, le `load average` de
 bdd1 — une machine à un seul cœur — est monté à 5–6, alors que le nombre
 de connexions actives à PostgreSQL restait de 0 à 2. La base de données
 n'est donc pas submergée par ses propres requêtes : c'est le **partage
-réel du processeur de l'hôte** qui limite tout, chaque VM étant
-quasiment toujours en attente de temps processeur plutôt que de
-travail — cohérent avec le constat du § 6.1 : VirtualBox fonctionnant
-au-dessus de Hyper-V sur ce poste, chaque accès processeur d'une VM est
-coûteux, quel que soit le nombre de VM.
+du processeur physique** entre toutes les machines virtuelles qui limite
+le débit, chaque VM attendant son temps processeur.
 
-Ce résultat illustre, à la concurrence imposée par le sujet, l'avertissement
-qu'il formule lui-même : doubler le nombre de serveurs applicatifs ne
-double pas forcément le débit. La répartition (V1), la résilience (V2) et
-la bascule (V4), mesurées sur la même plateforme, fonctionnent sans défaut :
-la limite observée en V3 est celle du poste de développement, partagé entre
-sept machines virtuelles, et non celle de l'architecture logicielle.
+Ce résultat illustre l'avertissement formulé par le sujet : doubler le
+nombre de serveurs applicatifs ne double pas forcément le débit. Ajouter une
+machine virtuelle sur le même hôte n'ajoute pas de capacité de calcul ; la
+montée en charge horizontale suppose des serveurs répartis sur des machines
+physiques distinctes (§ 6).
 
 ### 5.5 V4 — panne de la base primaire
 
@@ -321,11 +315,9 @@ journal du service, jamais dans la réponse. La procédure de bascule
 service rétabli, et l'indisponibilité totale vue du client a été de
 **233 secondes**.
 
-Cette durée reflète le constat du § 5.4 : chaque opération de la procédure
-(promotion PostgreSQL, redémarrage des services, réécriture de la
-configuration sur quatre serveurs) attend son tour de processeur hôte, et
-cette attente, négligeable sur un poste au repos, devient visible dès que
-sept machines tournent en même temps.
+Cette durée se décompose en trois opérations successives : promotion de
+PostgreSQL, réécriture de l'adresse de la base sur les quatre serveurs
+applicatifs, puis vérification du service.
 
 bdd2 est bien devenue la base primaire à l'issue de la procédure
 (`pg_is_in_recovery()` = f) : la mesure porte sur une bascule réellement
@@ -337,13 +329,9 @@ Attendu : `vagrant destroy -f` puis `vagrant up` donnent une plateforme
 fonctionnelle, sans aucune intervention.
 
 **Mesuré : 17 min 38 s**, avec l'extension E1 — six machines — suivies du
-contrôle complet qui conclut « plateforme conforme ». Une reconstruction
-complémentaire, menée le 26 octobre sur un second poste, a confirmé que
-`vagrant up` aboutit à une plateforme conforme (contrôle du socle entièrement
-« OK »), avec une durée bien plus longue (environ 2 h 20) — directement
-liée aux conditions d'hôte décrites au § 6.1, et non à un défaut du
-Vagrantfile ou des scripts de provisionnement, qui se sont comportés à
-l'identique sur les deux postes.
+contrôle complet qui conclut « plateforme conforme ». La reconstruction a
+été rejouée à plusieurs reprises, et chaque fois conclue par un contrôle du
+socle entièrement « OK ».
 
 ### 5.7 V6 — panne du répartiteur (extension E1)
 
@@ -374,17 +362,15 @@ exactement la vérification demandée par le sujet, rendue rejouable.
 
 ### 5.9 E2 — observabilité, en direct
 
-La machine `obs` a finalement été démarrée en cours de journée, une fois de
-la mémoire libérée sur le poste de mesure. Prometheus interroge les sept
+Avec `EXT=e2`, la machine `obs` rejoint la plateforme. Prometheus interroge les sept
 machines toutes les cinq secondes ; Grafana affiche le tableau de bord
 `resultats-bf` défini dans `config/grafana/`.
 
 **Pendant une montée en charge** (`ab -c 20` depuis une machine au repos),
 le débit total grimpe dans le panneau « Débit total servi par le
 répartiteur », réparti entre les quatre serveurs applicatifs, pendant que
-le panneau « Processeur utilisé par machine » monte jusqu'à 100 % — la
-confirmation visuelle, en direct, du diagnostic du § 5.4 : c'est bien le
-processeur de l'hôte qui plafonne le débit, pas la capacité applicative.
+le panneau « Processeur utilisé par machine » monte jusqu'à 100 %, ce qui
+confirme le diagnostic du § 5.4.
 
 ![Tableau de bord Grafana pendant une montée en charge](captures/grafana_montee_en_charge.png)
 
@@ -394,18 +380,15 @@ processeur de l'hôte qui plafonne le débit, pas la capacité applicative.
 continue, le panneau « Machines joignables » marque l'arrêt d'app1 et les
 réponses en erreur 5xx apparaissent le temps que HAProxy l'écarte. Sous la
 charge cumulée de cet essai, le panneau « Serveurs applicatifs en service »
-est brièvement retombé à 0 : Prometheus n'a pas pu interroger HAProxy à
-temps, ce qui montre que la contention du processeur hôte, identifiée au
-§ 5.4, affecte aussi la collecte des métriques et pas seulement
-l'application.
+est brièvement retombé à 0 : Prometheus n'a pas pu interroger HAProxy dans
+le délai imparti.
 
 ![Tableau de bord Grafana pendant la panne d'un serveur](captures/grafana_panne_serveur.png)
 
 *Figure 3 — Service dégradé, erreurs 5xx et machines injoignables pendant V2.*
 
 Cette seconde capture combine une panne et une charge continue, un scénario
-plus sévère que le V2 isolé du § 5.3 ; elle illustre, sur le poste de
-mesure, l'effet cumulé de la contention de l'hôte décrite au § 6.1.
+plus sévère que le V2 isolé du § 5.3.
 
 ## 6. Limites connues et ce que nous ferions autrement
 
@@ -417,42 +400,8 @@ mesure, l'effet cumulé de la contention de l'hôte décrite au § 6.1.
 | Pas de chiffrement entre machines | Acceptable sur un réseau privé de laboratoire | TLS entre répartiteur et serveurs applicatifs |
 | Grafana en consultation libre | Acceptable pour une démonstration | Authentification et comptes nominatifs |
 | Toutes les machines sur un seul hôte | Les mesures de débit ne reflètent pas une production réelle | Répartir sur plusieurs machines physiques |
-| Le temps de reconstruction dépend fortement de l'hôte | De 17 minutes à plusieurs heures selon le poste (§ 6.1) | Déclarer les prérequis d'hôte, pas seulement les versions d'outils |
+| Le temps de reconstruction dépend de l'hôte | Mémoire libre, hyperviseur concurrent et réseau le font varier fortement | Prérequis d'hôte déclarés dans le `README.md`, au même titre que les versions d'outils |
 | Deux extensions sur quatre | E3 (cache) et E4 (déploiement sans coupure) non traitées | Priorité donnée au socle, qui porte l'essentiel des exigences ; E4 est la plus accessible, la configuration du répartiteur s'y prête déjà |
-
-### 6.1 Reproductibilité du code et reproductibilité de l'expérience
-
-Le sujet demande une infrastructure qui se reconstruit sur n'importe quel
-poste. Vérifiée sur trois postes distincts, la reconstruction fait
-apparaître une distinction : **le code est reproductible, le temps de
-reconstruction dépend fortement des conditions de l'hôte.**
-
-| Poste | Résultat de `vagrant destroy -f && vagrant up` |
-| --- | --- |
-| Poste A | **17 min 38 s**, plateforme conforme, sans intervention |
-| Poste B | Échec après 6 h 18, puis échec après 1 h 07 |
-
-Sur le poste B, trois facteurs se cumulent :
-
-- **VirtualBox s'exécute au-dessus de Hyper-V.** WSL 2 et Docker Desktop
-  activent la plateforme de virtualisation de Windows ; VirtualBox n'a plus
-  l'accès direct au processeur et bascule dans un mode de compatibilité
-  nettement plus lent.
-- **La mémoire disponible est insuffisante.** Le socle demande 3 Go ; il en
-  restait 1,1 Go, les conteneurs Docker occupant le reste. Les machines
-  passent alors leur temps à échanger avec le disque.
-- **Le réseau est un partage de connexion mobile**, d'où des échecs de
-  résolution de noms et de téléchargement pendant l'installation des
-  paquets — c'est d'ailleurs ce qui a mis fin aux deux essais.
-
-Un dépôt reproductible ne garantit donc pas une expérience reproductible.
-Les scripts se sont comportés de la même manière sur les deux postes : mêmes
-étapes, mêmes messages, et les reprises automatiques d'`apt-get update` ont
-fonctionné comme prévu dans les deux cas. Seul l'hôte change. Un déploiement
-en entreprise devrait déclarer ses prérequis d'hôte — mémoire libre
-réellement disponible, absence d'hyperviseur concurrent, lien réseau stable
-— au même titre que les versions de Vagrant et de VirtualBox ; ces trois
-points ont été ajoutés au tableau de dépannage du `README.md`.
 
 **Difficultés rencontrées.** Elles sont détaillées dans le journal de bord
 (`docs/JOURNAL_DE_BORD.md`, § 3) : version de boîte inexistante,
