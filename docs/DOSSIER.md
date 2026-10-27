@@ -122,8 +122,9 @@ done <<< "$SERVEURS"
 ```
 
 Conséquence directe : passer de deux à quatre serveurs ne demande que
-`NB_APP=4 vagrant up`. Aucune adresse n'est écrite en dur, nulle part. Sans
-cela, « scalable » ne serait qu'un mot — et le barème retire deux points.
+`NB_APP=4 vagrant up`. Aucune adresse n'est écrite en dur, nulle part : la
+configuration du répartiteur suit automatiquement toute évolution du
+nombre de machines.
 
 ## 3. Justification des choix
 
@@ -234,7 +235,7 @@ lit les sorties brutes — aucun chiffre n'est recopié à la main.
 | V6 | Interruption maximale du service | **1,2 s**, 0 erreur sur 688 requêtes | 2 serveurs, E1 active | `v6_panne_lb_20261022_164444.txt` |
 | R2 | Idempotence du provisionnement | **Satisfaite** : aucun fichier de `/etc` modifié | 2 serveurs | `r2_idempotence_20261026_144651.txt` |
 
-### 5.2 V1 — la mesure qui ne mesurait pas ce que nous croyions
+### 5.2 V1 — répartition
 
 Attendu : les N serveurs apparaissent tour à tour ; écart inférieur à 20 %.
 
@@ -261,24 +262,24 @@ Deux mécanismes se cumulent : HAProxy interroge `/sante` chaque seconde et
 `retry-on` rejoue sur un autre serveur une requête partie vers la machine
 qui tombe, au lieu de la perdre.
 
-### 5.4 V3 — montée en charge : un résultat qui parle contre nous, et c'est le but
+### 5.4 V3 — montée en charge
 
 Attendu : le débit augmente lorsque l'on ajoute des serveurs.
 
-**Mesuré : la plateforme sature au niveau de charge imposé par le sujet**
-(`ab -n 2000 -c 50`), à deux comme à quatre serveurs, et le débit ne
-progresse pas en ajoutant des machines.
+**Mesuré : à la concurrence imposée par le sujet** (`ab -n 2000 -c 50`), la
+plateforme sature à deux comme à quatre serveurs, et le débit ne progresse
+pas en ajoutant des machines.
 
 | Configuration | Débit mesuré | Requêtes réussies |
 | --- | --- | --- |
 | N = 2 serveurs | 28,1 req/s (médiane) | 29 à 40 % selon la passe |
 | N = 4 serveurs | 27,6 req/s (médiane) | 29 à 36 % selon la passe |
 
-Publier seulement ce débit serait trompeur : à ce niveau de concurrence,
-la majorité des réponses sont des erreurs 503 renvoyées vite, qui gonflent
-artificiellement le compte de requêtes par seconde. `v3_charge.sh` les
-affiche et avertit désormais explicitement quand le taux de réussite passe
-sous 50 %.
+À ce niveau de concurrence, la majorité des réponses sont des erreurs 503
+renvoyées rapidement, ce qui gonfle le nombre de requêtes par seconde sans
+refléter un débit utile. Le débit mesuré doit donc être lu avec le taux de
+requêtes réussies ; `v3_charge.sh` affiche les deux et signale les passes
+où moins de la moitié des requêtes aboutissent.
 
 **Diagnostic.** À une concurrence plus faible, le service répond sans
 aucune erreur :
@@ -301,13 +302,12 @@ travail — cohérent avec le constat du § 6.1 : VirtualBox fonctionnant
 au-dessus de Hyper-V sur ce poste, chaque accès processeur d'une VM est
 coûteux, quel que soit le nombre de VM.
 
-Nous retenons que l'exigence « doubler le nombre de serveurs applicatifs
-ne doublera pas forcément le débit, et il est possible qu'il baisse »,
-énoncée par le sujet, se vérifie ici dans sa forme la plus nette : le
-débit ne bouge quasiment pas. Ce n'est pas un échec de l'architecture —
-la répartition (V1), la résilience (V2) et la bascule (V4) fonctionnent
-toutes sur la même plateforme — c'est la limite physique d'un poste de
-développement unique, documentée plutôt que masquée.
+Ce résultat illustre, à la concurrence imposée par le sujet, l'avertissement
+qu'il formule lui-même : doubler le nombre de serveurs applicatifs ne
+double pas forcément le débit. La répartition (V1), la résilience (V2) et
+la bascule (V4), mesurées sur la même plateforme, fonctionnent sans défaut :
+la limite observée en V3 est celle du poste de développement, partagé entre
+sept machines virtuelles, et non celle de l'architecture logicielle.
 
 ### 5.5 V4 — panne de la base primaire
 
@@ -321,19 +321,15 @@ journal du service, jamais dans la réponse. La procédure de bascule
 service rétabli, et l'indisponibilité totale vue du client a été de
 **233 secondes**.
 
-Cette durée est nettement supérieure à celle observée sur le banc de
-vérification (7,9 s, § 5.6 ancien) : l'écart illustre encore le constat du
-§ 5.4 — sur cette plateforme, chaque opération (promotion PostgreSQL,
-redémarrage des services, réécriture de la configuration sur quatre
-serveurs) attend son tour de processeur hôte, et cette attente, négligeable
-sur un poste au repos, devient visible dès que sept machines tournent en
-même temps.
+Cette durée reflète le constat du § 5.4 : chaque opération de la procédure
+(promotion PostgreSQL, redémarrage des services, réécriture de la
+configuration sur quatre serveurs) attend son tour de processeur hôte, et
+cette attente, négligeable sur un poste au repos, devient visible dès que
+sept machines tournent en même temps.
 
 bdd2 est bien devenue la base primaire à l'issue de la procédure
-(`pg_is_in_recovery()` = f), confirmant que la bascule a réellement eu lieu
-et non simplement que le test a conclu au succès sans rien faire — le
-défaut d'une mesure antérieure à « 0 seconde », corrigé depuis par une
-vérification préalable dans le scénario.
+(`pg_is_in_recovery()` = f) : la mesure porte sur une bascule réellement
+exécutée, et non sur un état déjà basculé au moment du lancement du test.
 
 ### 5.6 V5 — reconstruction intégrale
 
@@ -358,11 +354,11 @@ sur 688**, pendant que lb1 est arrêtée sous charge. Le journal de keepalived
 sur lb2 montre `Entering MASTER STATE` au même moment : c'est bien la
 bascule VRRP qui a repris l'adresse virtuelle.
 
-Un détail de méthode mérite d'être signalé. La première version de l'essai
-mesurait « arrêt de la machine → dernière erreur ». Cette mesure était
-fausse : `vagrant halt` met jusqu'à trente secondes à éteindre la machine,
-qui sert normalement pendant ce temps. L'essai mesure désormais le plus
-long intervalle sans aucune réponse.
+L'indicateur retenu est le plus long intervalle sans aucune réponse après
+l'arrêt de lb1, et non l'écart entre l'arrêt de la machine et la dernière
+erreur : `vagrant halt` peut mettre jusqu'à trente secondes à éteindre une
+machine qui continue de servir du trafic pendant ce temps, ce qui fausserait
+une mesure fondée sur ce seul écart.
 
 ### 5.8 R2 — idempotence
 
@@ -399,20 +395,17 @@ continue, le panneau « Machines joignables » marque l'arrêt d'app1 et les
 réponses en erreur 5xx apparaissent le temps que HAProxy l'écarte. Sous la
 charge cumulée de cet essai, le panneau « Serveurs applicatifs en service »
 est brièvement retombé à 0 : Prometheus n'a pas pu interroger HAProxy à
-temps, preuve supplémentaire, non recherchée, que la contention du
-processeur hôte affecte aussi la supervision elle-même, et pas seulement
+temps, ce qui montre que la contention du processeur hôte, identifiée au
+§ 5.4, affecte aussi la collecte des métriques et pas seulement
 l'application.
 
 ![Tableau de bord Grafana pendant la panne d'un serveur](captures/grafana_panne_serveur.png)
 
 *Figure 3 — Service dégradé, erreurs 5xx et machines injoignables pendant V2.*
 
-Ces deux captures ont été prises en conditions réelles, sans mise en scène :
-le second essai donne une image plus sévère que celle attendue par le
-scénario V2 seul, précisément parce qu'il combinait une panne et une charge
-simultanées sur un hôte déjà sous tension — un cas que le sujet ne demande
-pas, mais qui illustre honnêtement les limites du poste de mesure plutôt que
-celles de l'architecture.
+Cette seconde capture combine une panne et une charge continue, un scénario
+plus sévère que le V2 isolé du § 5.3 ; elle illustre, sur le poste de
+mesure, l'effet cumulé de la contention de l'hôte décrite au § 6.1.
 
 ## 6. Limites connues et ce que nous ferions autrement
 
@@ -427,12 +420,12 @@ celles de l'architecture.
 | Le temps de reconstruction dépend fortement de l'hôte | De 17 minutes à plusieurs heures selon le poste (§ 6.1) | Déclarer les prérequis d'hôte, pas seulement les versions d'outils |
 | Deux extensions sur quatre | E3 (cache) et E4 (déploiement sans coupure) non traitées | Priorité donnée au socle, qui porte l'essentiel des exigences ; E4 est la plus accessible, la configuration du répartiteur s'y prête déjà |
 
-### 6.1 Ce que « reconstructible sur n'importe quel poste » veut vraiment dire
+### 6.1 Reproductibilité du code et reproductibilité de l'expérience
 
-Le sujet demande une infrastructure qui se reconstruit « sur n'importe quel
-poste ». Nous l'avons vérifié sur trois machines, et le résultat nous a
-surpris : **le code est bien reproductible, le temps de reconstruction ne
-l'est pas du tout.**
+Le sujet demande une infrastructure qui se reconstruit sur n'importe quel
+poste. Vérifiée sur trois postes distincts, la reconstruction fait
+apparaître une distinction : **le code est reproductible, le temps de
+reconstruction dépend fortement des conditions de l'hôte.**
 
 | Poste | Résultat de `vagrant destroy -f && vagrant up` |
 | --- | --- |
@@ -452,15 +445,14 @@ Sur le poste B, trois facteurs se cumulent :
   résolution de noms et de téléchargement pendant l'installation des
   paquets — c'est d'ailleurs ce qui a mis fin aux deux essais.
 
-**Ce que nous en retenons.** Un dépôt reproductible ne garantit pas une
-expérience reproductible. Nos scripts se sont comportés de la même manière
-sur les deux postes : mêmes étapes, mêmes messages, et les reprises
-automatiques d'`apt-get update` ont fonctionné comme prévu. Ce qui change,
-c'est l'hôte. Un projet livré en entreprise devrait donc déclarer ses
-prérequis d'hôte — mémoire libre réellement disponible, absence
-d'hyperviseur concurrent, lien réseau stable — au même titre que les
-versions de Vagrant et de VirtualBox. Nous avons ajouté ces trois points au
-tableau de dépannage du `README.md`.
+Un dépôt reproductible ne garantit donc pas une expérience reproductible.
+Les scripts se sont comportés de la même manière sur les deux postes : mêmes
+étapes, mêmes messages, et les reprises automatiques d'`apt-get update` ont
+fonctionné comme prévu dans les deux cas. Seul l'hôte change. Un déploiement
+en entreprise devrait déclarer ses prérequis d'hôte — mémoire libre
+réellement disponible, absence d'hyperviseur concurrent, lien réseau stable
+— au même titre que les versions de Vagrant et de VirtualBox ; ces trois
+points ont été ajoutés au tableau de dépannage du `README.md`.
 
 **Difficultés rencontrées.** Elles sont détaillées dans le journal de bord
 (`docs/JOURNAL_DE_BORD.md`, § 3) : version de boîte inexistante,

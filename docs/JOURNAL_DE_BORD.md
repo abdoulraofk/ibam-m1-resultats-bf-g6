@@ -13,8 +13,8 @@ Le détail jour par jour est dans `JOURNAL.md`, à la racine du dépôt.
 
 Le sujet prévoit quatre rôles ; nous sommes cinq. Nous avons ajouté un
 cinquième rôle, **intégration, reproductibilité et documentation**, qui
-couvre ce que le barème pénalise le plus durement : la reconstruction
-intégrale (R1), l'idempotence (R2), l'absence de secrets (R7) et le README.
+couvre la reconstruction intégrale (R1), l'idempotence (R2), l'absence de
+secrets (R7) et le README.
 
 | Membre | Rôle | Périmètre |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ code dont le provisionnement a été vérifié.
 
 | Décision | Raison |
 | --- | --- |
-| Table `NOEUDS` du Vagrantfile comme source unique de vérité | La configuration du répartiteur est engendrée depuis la même table que les machines : `NB_APP=4` suffit (R3). Une liste écrite à la main coûterait 2 points. |
+| Table `NOEUDS` du Vagrantfile comme source unique de vérité | La configuration du répartiteur est engendrée depuis la même table que les machines : `NB_APP=4` suffit (R3), sans adresse écrite à la main. |
 | Fonctions idempotentes communes (`scripts/commun.sh`) | `ecrire_si_different` et `ajouter_ligne` remplacent `>>` et les réécritures : c'est ce qui rend R2 vérifiable. |
 | `BDD_HOTE` dans un fichier relu à chaque requête | La bascule de la base ne demande aucun redémarrage de l'application. |
 | keepalived en unicast | La multidiffusion est peu fiable sur le réseau hôte-seul de VirtualBox. |
@@ -62,9 +62,8 @@ donnait 6/5/5/4 sur quatre serveurs. La cause n'était pas HAProxy : la sonde
 de keepalived interrogeait `/sante` **à travers** le répartiteur et
 consommait un tour de la répartition chaque seconde. En la basculant sur
 `/lb_sante`, servi par HAProxy lui-même, la répartition est devenue
-parfaite : 5/5/5/5. C'est la difficulté la plus instructive du projet : le
-premier chiffre mesuré n'était pas faux, il mesurait autre chose que ce que
-nous croyions.
+parfaite : 5/5/5/5. Le premier chiffre mesuré n'était pas faux : il
+mesurait la sonde en plus des serveurs applicatifs.
 
 **Reprovisionner après une bascule effaçait la base promue.** Le script de
 la réplique décidait de recopier bdd1 quand `standby.signal` était absent.
@@ -95,15 +94,19 @@ discutée au § 6.1 du dossier.
 d'essai ne voyaient pas les machines VirtualBox. Nous avons ajouté un
 lanceur `essais\lancer.cmd` qui appelle explicitement Git Bash.
 
-## 4. Ce que nous retenons
+## 4. Bilan
 
-- **Mesurer tôt et comprendre chaque chiffre.** Les deux mesures les plus
-  utiles du projet sont celles qui étaient fausses : 40 % d'écart et
-  0 seconde de bascule. Les expliquer a corrigé l'infrastructure.
+- **Comprendre chaque chiffre avant de le publier.** Deux mesures
+  initialement erronées (40 % d'écart en V1, 0 seconde de bascule en V4)
+  ont permis d'identifier puis de corriger deux défauts réels de
+  l'infrastructure.
 - **Un provisionnement non idempotent ne se voit qu'au second passage.**
-  Rejouer systématiquement a révélé plusieurs défauts.
-- **La reproductibilité se vérifie sur le poste d'un autre.** Les erreurs de
-  boîte Vagrant et de lancement sous PowerShell n'apparaissaient pas sur le
-  poste qui avait écrit le code.
-- **Écrire du code n'est pas le livrer.** Un script resté sur un poste n'a
-  pas de commit, ne passe aucune relecture et n'existe pas pour le projet.
+  Rejouer systématiquement `vagrant provision` a révélé plusieurs défauts
+  qu'un seul passage aurait laissés invisibles.
+- **La reproductibilité se vérifie sur un autre poste.** Les erreurs de
+  version de boîte et de lancement sous PowerShell n'apparaissaient pas sur
+  le poste qui avait écrit le code, seulement sur celui qui l'exécutait pour
+  la première fois.
+- **Un commit régulier conditionne l'avancement du projet.** Les tâches
+  restées sur un poste sans être poussées n'ont pas pu être relues ni
+  intégrées dans les délais prévus.
